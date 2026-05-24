@@ -67,17 +67,62 @@ jarvis/
 
 ---
 
-## Instalación
+## Instalación rápida
 
 ```bash
-git clone https://github.com/tu-user/jarvis.git
-cd jarvis
+git clone https://github.com/tu-user/jarvis.git /srv/nas/assistant
+cd /srv/nas/assistant
+bash install.sh
+```
 
+El script `install.sh` hace todo: instala dependencias, crea la carpeta `data/`, copia `.env.example` a `.env` y registra el servicio systemd para que Jarvis arranque automáticamente con el sistema.
+
+Después de ejecutarlo, edita el `.env` con tus credenciales y arranca el servicio:
+
+```bash
+nano /srv/nas/assistant/.env
+sudo systemctl start jarvis
+```
+
+---
+
+## Instalación manual paso a paso
+
+### 1. Dependencias
+
+```bash
 pip install -r requirements.txt --break-system-packages
+```
 
+### 2. Configuración
+
+```bash
 cp .env.example .env
-# Editar .env con tus valores
+nano .env
+```
 
+Variables mínimas necesarias para que arranque:
+
+```env
+IP=192.168.1.x
+OPENROUTER_API_KEY=tu_clave
+DISCORD_TOKEN=tu_token
+DISCORD_CANAL_ID=id_del_canal
+DISCORD_DM_ID=tu_id_de_discord
+DATA_DIR=/srv/nas/assistant/data
+```
+
+El resto de variables (Radarr, Sonarr, HA, etc.) son opcionales: si no las configuras, esa integración no funcionará pero el resto del proyecto sí.
+
+### 3. Crear carpeta de datos
+
+```bash
+mkdir -p data
+```
+
+### 4. Arrancar
+
+```bash
 python main.py
 ```
 
@@ -85,9 +130,29 @@ La API queda disponible en `http://<IP>:8888`.
 
 ---
 
-## Configuración
+## Arranque automático con systemd
 
-Copia `.env.example` a `.env` y completa:
+Para que Jarvis arranque solo al boot, instala el unit de systemd incluido:
+
+```bash
+sudo cp deploy/jarvis.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable jarvis
+sudo systemctl start jarvis
+```
+
+Comandos útiles:
+
+```bash
+sudo systemctl status jarvis        # Ver estado
+sudo systemctl restart jarvis       # Reiniciar
+journalctl -u jarvis -f             # Logs en vivo
+journalctl -u jarvis --no-pager -n 100   # Últimas 100 líneas
+```
+
+---
+
+## Configuración completa de `.env`
 
 | Variable | Descripción |
 |---|---|
@@ -107,8 +172,6 @@ Copia `.env.example` a `.env` y completa:
 | `N8N_USER` / `N8N_PASS` | Credenciales n8n |
 | `FB_USER` / `FB_PASS` | Credenciales Filebrowser |
 | `DATA_DIR` | Ruta de datos (ej: `/srv/nas/assistant/data`) |
-
-Las integraciones de media, descargas y automatización son opcionales: si no configuras una clave, esa integración simplemente no funcionará.
 
 ---
 
@@ -227,14 +290,15 @@ Corre en background cada 120 segundos.
 | n8n | 5678 |
 | Filebrowser | 8080 |
 
+Todas las integraciones son opcionales. Si no configuras la clave correspondiente en `.env`, esa integración se omite sin afectar el resto.
+
 ---
 
 ## Notas de despliegue
 
 - El proyecto asume Linux con Docker instalado y acceso a `journalctl`.
-- Los compose se buscan bajo `/srv/nas/docker` por defecto (ajustable en `tools/integraciones/docker.py`).
+- Los compose se buscan bajo `/srv/nas/docker` por defecto.
 - `docker_compose_up` y `docker_compose_down` son **globales**: afectan todos los composes del árbol.
-- Para que `/health` detecte el estado de los hilos, `main.py` debe llamar `register_hilo(nombre, hilo)` importado de `api.server` tras iniciar cada hilo.
 - El primer poll de `/stats` devuelve `sent_kbps: 0` y `recv_kbps: 0` hasta la segunda lectura (comportamiento esperado).
 
 ---
