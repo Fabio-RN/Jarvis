@@ -1,20 +1,20 @@
 # Jarvis
 
-Asistente de servidor para NAS/Linux. Combina una API web, un bot de Discord y un loop LLM con tool-calling real sobre la infraestructura local.
+A self-hosted server assistant for NAS/Linux. Combines a web API, a Discord bot, and an LLM agent with real tool-calling over your local infrastructure.
 
-**Versión actual: V3.5**
+**Current version: V3.5**
 
 ---
 
-## Qué hace
+## What it does
 
-- **Chat con herramientas reales**: el agente puede consultar el estado del sistema, reiniciar contenedores, buscar medios, controlar Home Assistant y ejecutar comandos, todo desde una conversación natural.
-- **Dashboard web**: CPU, RAM, disco, temperatura, red (KB/s reales), contenedores y logs en tiempo real.
-- **Consola web interactiva**: terminal estilo SSH directamente en el navegador, sin pasar por el LLM.
-- **Bot de Discord**: mismo agente accesible desde canal o DM, con consola remota propia.
-- **Vigilante**: monitoreo proactivo con alertas y auto-reinicio limitado de contenedores.
-- **Reparador**: diagnóstico automático de errores, clasificación por patrones y remediación guiada.
-- **Watchdog de hilos**: monitorea que Discord y los agentes sigan vivos; reinicia y notifica por DM si caen.
+- **Chat with real tools** — the agent can check system status, restart containers, search for media, control Home Assistant, and run shell commands, all through natural conversation.
+- **Web dashboard** — CPU, RAM, disk, temperature, real-time network (KB/s), containers, and logs.
+- **Interactive web console** — SSH-style terminal directly in the browser, bypassing the LLM entirely.
+- **Discord bot** — same agent accessible from a channel or DM, with its own remote console.
+- **Watchdog** — proactive monitoring with alerts and limited auto-restart of containers.
+- **Repairer** — automatic error diagnosis, pattern-based classification, and guided remediation.
+- **Thread watchdog** — monitors Discord and agent threads; restarts them and notifies via DM if they die.
 
 ---
 
@@ -23,37 +23,40 @@ Asistente de servidor para NAS/Linux. Combina una API web, un bot de Discord y u
 - Python 3.12
 - FastAPI + uvicorn
 - discord.py
-- openai SDK → OpenRouter (LLM principal)
+- openai SDK → OpenRouter (main LLM provider)
 - psutil, pydantic, requests, pyyaml, python-dotenv
 
 ---
 
-## Estructura
+## Project structure
 
 ```
 jarvis/
 ├── main.py                  # Entrypoint
 ├── requirements.txt
+├── install.sh               # Automated installer
+├── deploy/
+│   └── jarvis.service       # systemd unit
 ├── web/
-│   └── index.html           # Dashboard (sin framework)
+│   └── index.html           # Dashboard (no framework)
 ├── api/
 │   ├── server.py            # FastAPI + endpoints
-│   ├── discord_bot.py       # Bot Discord
-│   └── consola.py           # Consola interactiva Discord
+│   ├── discord_bot.py       # Discord bot
+│   └── consola.py           # Discord interactive console
 ├── agente/
-│   ├── loop.py              # Orquestador LLM
-│   ├── vigilante.py         # Monitoreo proactivo
-│   └── reparador.py         # Diagnóstico y remediación
+│   ├── loop.py              # LLM orchestrator
+│   ├── vigilante.py         # Proactive monitoring
+│   └── reparador.py         # Diagnosis and remediation
 ├── core/
-│   ├── config.py            # Variables de entorno
-│   ├── llm_client.py        # Cliente OpenRouter con fallback
-│   ├── historial.py         # Historial multi-origen
-│   ├── sistema.py           # Métricas y run_command
+│   ├── config.py            # Environment variables
+│   ├── llm_client.py        # OpenRouter client with fallback
+│   ├── historial.py         # Multi-origin conversation history
+│   ├── sistema.py           # Metrics and run_command
 │   ├── actividad.py
 │   └── tokens.py
 ├── tools/
-│   ├── definiciones.py      # Esquema de tools para el LLM
-│   ├── ejecutor.py          # Dispatcher
+│   ├── definiciones.py      # Tool schema for the LLM
+│   ├── ejecutor.py          # Tool dispatcher
 │   └── integraciones/
 │       ├── media.py         # Radarr, Sonarr, Prowlarr, Jellyseerr
 │       ├── descargas.py     # qBittorrent
@@ -61,23 +64,23 @@ jarvis/
 │       ├── homeassistant.py
 │       ├── jellyfin.py
 │       ├── automatizacion.py # n8n, Filebrowser
-│       └── sitios.py        # Descubrimiento de servicios
-└── data/                    # JSON de runtime (no incluidos en repo)
+│       └── sitios.py        # Service discovery
+└── data/                    # Runtime JSON files (not included in repo)
 ```
 
 ---
 
-## Instalación rápida
+## Quick install
 
 ```bash
-git clone https://github.com/tu-user/jarvis.git /srv/nas/assistant
+git clone https://github.com/your-user/jarvis.git /srv/nas/assistant
 cd /srv/nas/assistant
 bash install.sh
 ```
 
-El script `install.sh` hace todo: instala dependencias, crea la carpeta `data/`, copia `.env.example` a `.env` y registra el servicio systemd para que Jarvis arranque automáticamente con el sistema.
+The `install.sh` script handles everything: installs dependencies, creates the `data/` folder, copies `.env.example` to `.env`, and registers the systemd service so Jarvis starts automatically on boot.
 
-Después de ejecutarlo, edita el `.env` con tus credenciales y arranca el servicio:
+After running it, fill in your credentials and start the service:
 
 ```bash
 nano /srv/nas/assistant/.env
@@ -86,53 +89,53 @@ sudo systemctl start jarvis
 
 ---
 
-## Instalación manual paso a paso
+## Manual installation
 
-### 1. Dependencias
+### 1. Install dependencies
 
 ```bash
 pip install -r requirements.txt --break-system-packages
 ```
 
-### 2. Configuración
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
 nano .env
 ```
 
-Variables mínimas necesarias para que arranque:
+Minimum variables required to boot:
 
 ```env
 IP=192.168.1.x
-OPENROUTER_API_KEY=tu_clave
-DISCORD_TOKEN=tu_token
-DISCORD_CANAL_ID=id_del_canal
-DISCORD_DM_ID=tu_id_de_discord
+OPENROUTER_API_KEY=your_key
+DISCORD_TOKEN=your_token
+DISCORD_CANAL_ID=channel_id
+DISCORD_DM_ID=your_discord_user_id
 DATA_DIR=/srv/nas/assistant/data
 ```
 
-El resto de variables (Radarr, Sonarr, HA, etc.) son opcionales: si no las configuras, esa integración no funcionará pero el resto del proyecto sí.
+All other variables (Radarr, Sonarr, HA, etc.) are optional — if not set, that integration is skipped without affecting anything else.
 
-### 3. Crear carpeta de datos
+### 3. Create data folder
 
 ```bash
 mkdir -p data
 ```
 
-### 4. Arrancar
+### 4. Run
 
 ```bash
 python main.py
 ```
 
-La API queda disponible en `http://<IP>:8888`.
+The API will be available at `http://<IP>:8888`.
 
 ---
 
-## Arranque automático con systemd
+## Auto-start with systemd
 
-Para que Jarvis arranque solo al boot, instala el unit de systemd incluido:
+To have Jarvis start automatically on boot:
 
 ```bash
 sudo cp deploy/jarvis.service /etc/systemd/system/
@@ -141,110 +144,110 @@ sudo systemctl enable jarvis
 sudo systemctl start jarvis
 ```
 
-Comandos útiles:
+Useful commands:
 
 ```bash
-sudo systemctl status jarvis        # Ver estado
-sudo systemctl restart jarvis       # Reiniciar
-journalctl -u jarvis -f             # Logs en vivo
-journalctl -u jarvis --no-pager -n 100   # Últimas 100 líneas
+sudo systemctl status jarvis             # Check status
+sudo systemctl restart jarvis            # Restart
+journalctl -u jarvis -f                  # Live logs
+journalctl -u jarvis --no-pager -n 100   # Last 100 lines
 ```
 
 ---
 
-## Configuración completa de `.env`
+## Environment variables
 
-| Variable | Descripción |
+| Variable | Description |
 |---|---|
-| `IP` | IP local del servidor |
-| `OPENROUTER_API_KEY` | Clave de OpenRouter (LLM) |
-| `GROQ_API_KEY` | Clave de Groq (cliente auxiliar) |
-| `DISCORD_TOKEN` | Token del bot de Discord |
-| `DISCORD_CANAL_ID` | ID del canal donde responde el bot |
-| `DISCORD_DM_ID` | ID del usuario owner (DMs + consola) |
-| `RADARR_KEY` | API key de Radarr |
-| `SONARR_KEY` | API key de Sonarr |
-| `PROWLARR_KEY` | API key de Prowlarr |
-| `JELLYFIN_KEY` | API key de Jellyfin |
-| `JELLYSEERR_KEY` | API key de Jellyseerr |
-| `QBIT_USER` / `QBIT_PASS` | Credenciales qBittorrent |
-| `HA_TOKEN` | Token de Home Assistant |
-| `N8N_USER` / `N8N_PASS` | Credenciales n8n |
-| `FB_USER` / `FB_PASS` | Credenciales Filebrowser |
-| `DATA_DIR` | Ruta de datos (ej: `/srv/nas/assistant/data`) |
+| `IP` | Local server IP |
+| `OPENROUTER_API_KEY` | OpenRouter API key (LLM) |
+| `GROQ_API_KEY` | Groq API key (auxiliary client) |
+| `DISCORD_TOKEN` | Discord bot token |
+| `DISCORD_CANAL_ID` | Channel ID where the bot responds |
+| `DISCORD_DM_ID` | Owner user ID (DMs + console access) |
+| `RADARR_KEY` | Radarr API key |
+| `SONARR_KEY` | Sonarr API key |
+| `PROWLARR_KEY` | Prowlarr API key |
+| `JELLYFIN_KEY` | Jellyfin API key |
+| `JELLYSEERR_KEY` | Jellyseerr API key |
+| `QBIT_USER` / `QBIT_PASS` | qBittorrent credentials |
+| `HA_TOKEN` | Home Assistant long-lived token |
+| `N8N_USER` / `N8N_PASS` | n8n credentials |
+| `FB_USER` / `FB_PASS` | Filebrowser credentials |
+| `DATA_DIR` | Data directory path (e.g. `/srv/nas/assistant/data`) |
 
 ---
 
 ## LLM
 
-Proveedor: **OpenRouter** con fallback automático entre modelos:
+Provider: **OpenRouter** via the openai SDK, with automatic model fallback:
 
 1. `meta-llama/llama-3.3-70b-instruct:free`
 2. `mistralai/devstral-small:free`
 3. `nvidia/llama-3.1-nemotron-nano-8b-v1:free`
 4. `openrouter/free`
 
-El vigilante usa `nvidia/llama-3.1-nemotron-nano-8b-v1:free` como modelo auxiliar.
+The watchdog agent uses `nvidia/llama-3.1-nemotron-nano-8b-v1:free` as its auxiliary model.
 
 ---
 
-## Endpoints principales
+## API endpoints
 
-| Método | Ruta | Descripción |
+| Method | Path | Description |
 |---|---|---|
-| `POST` | `/chat` | Chat con el agente |
-| `POST` | `/cmd` | Ejecutar comando directo (consola web) |
-| `GET` | `/stats` | CPU, RAM, disco, red, temperatura, contenedores |
-| `GET` | `/health` | Estado del sistema (`ok / warn / critical`) |
-| `GET` | `/logs/{contenedor}` | Últimas 100 líneas de logs Docker |
-| `GET` | `/tokens` | Uso de tokens del día |
-| `GET/POST` | `/vigilante` | Config del vigilante |
-| `POST` | `/vigilante/toggle` | Activar/desactivar vigilante |
-| `POST` | `/docker/restart/{nombre}` | Reiniciar contenedor |
-| `POST` | `/docker/up` | `docker compose up -d` en todos los composes |
-| `POST` | `/docker/down` | `docker compose down` en todos los composes |
+| `POST` | `/chat` | Chat with the agent |
+| `POST` | `/cmd` | Run a shell command directly (web console) |
+| `GET` | `/stats` | CPU, RAM, disk, network, temperature, containers |
+| `GET` | `/health` | System health (`ok / warn / critical`) |
+| `GET` | `/logs/{container}` | Last 100 lines of Docker logs |
+| `GET` | `/tokens` | Token usage for the current day |
+| `GET/POST` | `/vigilante` | Watchdog configuration |
+| `POST` | `/vigilante/toggle` | Enable/disable watchdog |
+| `POST` | `/docker/restart/{name}` | Restart a container |
+| `POST` | `/docker/up` | `docker compose up -d` on all compose files |
+| `POST` | `/docker/down` | `docker compose down` on all compose files |
 | `POST` | `/sistema/reiniciar` | `sudo reboot` |
 | `POST` | `/sistema/apagar` | `sudo poweroff` |
-| `GET/POST/DELETE` | `/consola/permisos` | Gestión de usuarios de la consola Discord |
+| `GET/POST/DELETE` | `/consola/permisos` | Discord console user management |
 
 ---
 
-## Consola web
+## Web console
 
-Accesible desde la pestaña **💻 Consola** del dashboard.
+Available in the **💻 Console** tab of the dashboard.
 
-- Terminal estilo SSH con prompt `usuario@jarvis:/ruta$`
-- Historial navegable con ↑↓ (hasta 100 entradas)
-- `Ctrl+L` para limpiar
-- Atajos rápidos: `ps`, `df`, `mem`, `temp`, `ports`, `net`, `uptime`, `docker ps`
-- Confirmación modal para comandos destructivos (`rm`, `docker system prune`, `reboot`, etc.)
-- Ejecuta contra `POST /cmd` directamente, sin pasar por el LLM
+- SSH-style terminal with `user@jarvis:/path$` prompt
+- Session history navigable with ↑↓ (up to 100 entries)
+- `Ctrl+L` to clear
+- Quick-action buttons: `ps`, `df`, `mem`, `temp`, `ports`, `net`, `uptime`, `docker ps`
+- Confirmation modal for destructive commands (`rm`, `docker system prune`, `reboot`, etc.)
+- Calls `POST /cmd` directly — does not go through the LLM
 
 ---
 
-## Consola Discord
+## Discord console
 
-Disponible en DMs con el bot mediante `!console`.
+Available in DMs with the bot via `!console`.
 
 ```
-!console           # Abrir sesión
-!console /ruta     # Abrir sesión en ruta específica
-!exit              # Cerrar sesión
-!history           # Ver historial de sesión
-!help              # Ayuda
+!console           # Open session
+!console /path     # Open session at specific path
+!exit              # Close session
+!history           # View session history
+!help              # Help
 ```
 
-Atajos: `!ps`, `!df`, `!mem`, `!temp`, `!ports`, `!whoami`, `!uptime`, `!net`, `!logs <contenedor>`, `!cat <archivo>`
+Shortcuts: `!ps`, `!df`, `!mem`, `!temp`, `!ports`, `!whoami`, `!uptime`, `!net`, `!logs <container>`, `!cat <file>`
 
-Acceso restringido al owner por defecto. Usuarios adicionales se gestionan desde la web en **IA/Actividad → Permisos de consola**.
+Access is restricted to the owner by default. Additional users can be managed from the web under **AI/Activity → Console permissions**.
 
 ---
 
-## Vigilante
+## Watchdog
 
-Monitoreo proactivo configurable desde el dashboard o via API.
+Proactive monitoring, configurable from the dashboard or via API.
 
-Valores por defecto:
+Default values:
 
 ```json
 {
@@ -258,27 +261,27 @@ Valores por defecto:
 }
 ```
 
-- Auto-reinicio de contenedores caídos: máximo 2 intentos, cooldown de 600s.
-- Resumen diario enviado por DM con ventana de ±5 minutos.
-- Las alertas críticas van siempre por DM, no al canal público.
+- Container auto-restart: max 2 attempts, 600s cooldown.
+- Daily summary sent via DM within a ±5 minute window.
+- Critical alerts always go via DM, never to the public channel.
 
 ---
 
-## Reparador
+## Repairer
 
-Corre en background cada 120 segundos.
+Runs in the background every 120 seconds.
 
-- Detecta contenedores detenidos y analiza sus logs.
-- Clasifica errores: `config` (YAML inválido, puerto ocupado, permisos) o `transitorio` (OOM, connection refused, timeout).
-- Los errores de configuración se reportan con fix sugerido sin reiniciar.
-- Los errores transitorios se intentan reparar con reinicio y revalidación.
-- No edita archivos de configuración por su cuenta.
+- Detects stopped containers and analyzes their logs.
+- Classifies errors as `config` (invalid YAML, port conflict, permissions) or `transient` (OOM, connection refused, timeout).
+- Config errors are reported with a suggested fix — no restart attempted.
+- Transient errors trigger a restart attempt followed by revalidation.
+- Never edits configuration files on its own.
 
 ---
 
-## Integraciones soportadas
+## Supported integrations
 
-| Servicio | Puerto por defecto |
+| Service | Default port |
 |---|---|
 | Radarr | 7878 |
 | Sonarr | 8989 |
@@ -290,31 +293,32 @@ Corre en background cada 120 segundos.
 | n8n | 5678 |
 | Filebrowser | 8080 |
 
-Todas las integraciones son opcionales. Si no configuras la clave correspondiente en `.env`, esa integración se omite sin afectar el resto.
+All integrations are optional. If the corresponding key is not set in `.env`, that integration is silently skipped.
 
 ---
 
-## Notas de despliegue
+## Deployment notes
 
-- El proyecto asume Linux con Docker instalado y acceso a `journalctl`.
-- Los compose se buscan bajo `/srv/nas/docker` por defecto.
-- `docker_compose_up` y `docker_compose_down` son **globales**: afectan todos los composes del árbol.
-- El primer poll de `/stats` devuelve `sent_kbps: 0` y `recv_kbps: 0` hasta la segunda lectura (comportamiento esperado).
+- Assumes Linux with Docker installed and access to `journalctl`.
+- Compose files are searched under `/srv/nas/docker` by default.
+- `docker compose up/down` are **global** — they affect all compose files in the tree.
+- The first `/stats` poll returns `sent_kbps: 0` and `recv_kbps: 0` until the second read (expected behavior).
 
 ---
 
 ## Changelog
 
-Ver [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](CHANGELOG.md).
 
-**V3.5** — Consola web interactiva, indicador de estado dinámico en header, `/health` con niveles diferenciados, fix de KB/s reales en `/stats`.
+**V3.5** — Interactive web console, dynamic status indicator in header, `/health` with differentiated severity levels, real KB/s fix in `/stats`.
 
-**V3.4** — Historial separado por origen (web/discord/dm), watchdog de hilos, permisos de consola Discord, panel de logs mejorado, reparador con diagnóstico específico.
+**V3.4** — Separate history per origin (web/discord/dm), thread watchdog, Discord console permissions, improved log panel, more specific repairer diagnosis.
 
-**V3** — Rediseño completo: de chatbot reactivo a agente con tools reales. Arquitectura modular: `core/`, `tools/`, `agente/`, `api/`.
+**V3** — Full rewrite: from a reactive chatbot to an agent with real tools. Modular architecture: `core/`, `tools/`, `agente/`, `api/`.
 
 ---
 
-## Licencia
+## License
 
-Uso personal. Con licencia abierta (MIT).
+Personal use. No open license defined yet.
+
