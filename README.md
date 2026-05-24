@@ -320,5 +320,5 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-Personal use. No open license defined yet.
+Personal use. With open license (MIT)
 
