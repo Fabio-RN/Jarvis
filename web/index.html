@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Jarvis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#0d1117; color:#e6edf3; font-family:monospace; height:100vh; display:flex; flex-direction:column; }
+        #header { padding:15px 20px; border-bottom:1px solid #30363d; font-size:18px; color:#58a6ff; display:flex; align-items:center; justify-content:space-between; }
+        #tabs { display:flex; border-bottom:1px solid #30363d; overflow-x:auto; }
+        .tab { padding:10px 20px; cursor:pointer; color:#8b949e; border-bottom:2px solid transparent; white-space:nowrap; font-size:13px; }
+        .tab.active { color:#58a6ff; border-bottom:2px solid #58a6ff; }
+        #content { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+        #panel-chat { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+        #panel-dashboard,#panel-history,#panel-logs,#panel-ai,#panel-console { flex:1; overflow-y:auto; padding:20px; display:none; }
+        #chat { flex:1; overflow-y:auto; padding:20px; padding-bottom:60px; display:flex; flex-direction:column; gap:12px; }
+        .mensaje { max-width:80%; padding:10px 15px; border-radius:8px; line-height:1.5; white-space:pre-wrap; font-size:14px; }
+        .usuario { background:#1f6feb; align-self:flex-end; }
+        .asistente { background:#161b22; border:1px solid #30363d; align-self:flex-start; }
+        #input-area { padding:15px 20px 45px; border-top:1px solid #30363d; display:flex; gap:10px; }
+        #input { flex:1; background:#161b22; border:1px solid #30363d; color:#e6edf3; padding:10px; border-radius:6px; font-family:monospace; font-size:14px; }
+        #input:focus { outline:none; border-color:#58a6ff; }
+        button { background:#1f6feb; border:none; color:white; padding:10px 20px; border-radius:6px; cursor:pointer; font-family:monospace; }
+        button:hover { background:#388bfd; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; margin-bottom:20px; }
+        .card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:20px; }
+        .card h3 { color:#58a6ff; margin-bottom:15px; font-size:14px; }
+        .stat { font-size:32px; font-weight:bold; }
+        .stat-label { color:#8b949e; font-size:12px; margin-top:5px; }
+        .chart-container { position:relative; height:120px; margin-top:10px; }
+        .containers-list { display:flex; flex-direction:column; gap:8px; }
+        .container-item { display:flex; justify-content:space-between; align-items:center; padding:8px; background:#0d1117; border-radius:6px; font-size:13px; }
+        .badge { padding:3px 8px; border-radius:4px; font-size:11px; }
+        .badge.running { background:#1a4a1a; color:#3fb950; }
+        .badge.stopped { background:#3d1f1f; color:#f85149; }
+        .btn-restart { background:#21262d; color:#8b949e; border:1px solid #30363d; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-family:monospace; }
+        .btn-restart:hover { background:#30363d; color:#e6edf3; }
+        .alerta { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; font-size:13px; z-index:999; animation:fadein 0.3s; max-width:350px; }
+        .alerta.warning { background:#3d2f00; border:1px solid #d29922; color:#d29922; }
+        .alerta.danger  { background:#3d1f1f; border:1px solid #f85149; color:#f85149; }
+        .alerta.success { background:#1a4a1a; border:1px solid #3fb950; color:#3fb950; }
+        @keyframes fadein { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+        .historial-item { padding:8px 12px; border-left:2px solid #30363d; margin-bottom:8px; font-size:13px; color:#8b949e; }
+        .historial-item .rol { color:#58a6ff; font-size:11px; margin-bottom:3px; }
+        .stat.ok { color:#3fb950; } .stat.warn { color:#d29922; } .stat.danger { color:#f85149; }
+        .net-stats { display:flex; justify-content:space-between; margin-top:8px; font-size:12px; }
+        .net-up { color:#f78166; } .net-down { color:#3fb950; }
+        .btn-danger { background:#3d1f1f; color:#f85149; border:1px solid #f85149; }
+        .btn-danger:hover { background:#5a2a2a; }
+        .btn-warn { background:#3d2f00; color:#d29922; border:1px solid #d29922; }
+        .btn-warn:hover { background:#5a4500; }
+        .btn-sm { background:#21262d; color:#8b949e; border:1px solid #30363d; padding:5px 12px; font-size:11px; border-radius:4px; cursor:pointer; font-family:monospace; }
+        .btn-sm:hover { background:#30363d; color:#e6edf3; }
+        .btn-green { background:#1a4a1a; color:#3fb950; border:1px solid #3fb950; }
+        .btn-green:hover { background:#2a5a2a; }
+        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; }
+        .modal.show { display:flex; }
+        .modal-box { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:30px; text-align:center; max-width:380px; }
+        .modal-box h3 { color:#f85149; margin-bottom:15px; }
+        .modal-box p { color:#8b949e; margin-bottom:20px; font-size:13px; }
+        .modal-btns { display:flex; gap:10px; justify-content:center; }
+        .ia-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:20px; }
+        .ia-stat-card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px; }
+        .ia-stat-card .label { font-size:10px; color:#8b949e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+        .ia-stat-card .value { font-size:22px; font-weight:bold; color:#58a6ff; }
+        .ia-stat-card .sub { font-size:11px; color:#8b949e; margin-top:4px; }
+        .ia-stat-card.green .value { color:#3fb950; }
+        .ia-stat-card.yellow .value { color:#d29922; }
+        .ia-stat-card.red .value { color:#f85149; }
+        .token-bar-big { background:#21262d; border-radius:6px; height:8px; margin-top:8px; overflow:hidden; }
+        .token-bar-big-fill { height:8px; border-radius:6px; background:#58a6ff; transition:width 0.5s; }
+        .seccion-titulo { color:#58a6ff; font-size:13px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+        .seccion-titulo span { flex:1; }
+        .seccion-titulo button { font-size:11px; padding:4px 10px; background:#21262d; border:1px solid #30363d; color:#8b949e; cursor:pointer; font-family:monospace; border-radius:4px; }
+        .seccion-titulo button:hover { background:#30363d; color:#e6edf3; }
+        .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+        .status-dot.green  { background:#3fb950; box-shadow:0 0 5px #3fb950; }
+        .status-dot.yellow { background:#d29922; }
+        .status-dot.red    { background:#f85149; }
+        .progreso-row { display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:8px; }
+        .progreso-label { color:#8b949e; min-width:90px; }
+        .progreso-bar { flex:1; background:#21262d; border-radius:4px; height:6px; }
+        .progreso-bar-fill { height:6px; border-radius:4px; transition:width 0.5s; }
+        .progreso-valor { color:#e6edf3; min-width:30px; text-align:right; }
+        .actividad-lista { display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto; }
+        .actividad-item { display:flex; align-items:flex-start; gap:10px; padding:8px 12px; background:#0d1117; border-radius:6px; border-left:3px solid #30363d; font-size:12px; }
+        .actividad-item.tool  { border-left-color:#58a6ff; }
+        .actividad-item.alert { border-left-color:#f85149; }
+        .actividad-item.ok    { border-left-color:#3fb950; }
+        .actividad-item.warn  { border-left-color:#d29922; }
+        .actividad-item.auto  { border-left-color:#bc8cff; }
+        .actividad-item.cmd   { border-left-color:#d29922; }
+        .act-tiempo { color:#8b949e; font-size:11px; min-width:65px; }
+        .act-texto  { flex:1; color:#e6edf3; }
+        .act-badge  { font-size:10px; padding:2px 6px; border-radius:3px; background:#21262d; color:#8b949e; white-space:nowrap; }
+        .alertas-lista { display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; }
+        .alerta-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:6px; font-size:12px; }
+        .alerta-item.critica     { background:#3d1f1f; border:1px solid #f85149; color:#f85149; }
+        .alerta-item.advertencia { background:#3d2f00; border:1px solid #d29922; color:#d29922; }
+        .alerta-item-tiempo { font-size:10px; opacity:0.7; }
+        .cmds-lista { display:flex; flex-direction:column; gap:5px; max-height:280px; overflow-y:auto; }
+        .cmd-item { background:#0d1117; border:1px solid #21262d; border-radius:6px; padding:8px 12px; font-size:12px; }
+        .cmd-item .cmd-text { color:#bc8cff; font-family:monospace; margin-bottom:3px; word-break:break-all; }
+        .cmd-item .cmd-meta { color:#8b949e; font-size:10px; display:flex; justify-content:space-between; }
+        .empty-state { color:#8b949e; font-size:13px; text-align:center; padding:25px; }
+        .tareas-resumen { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
+        .tarea-stat { background:#0d1117; border-radius:6px; padding:10px; text-align:center; }
+        .tarea-stat .ts-num   { font-size:20px; font-weight:bold; margin-bottom:2px; }
+        .tarea-stat .ts-label { font-size:10px; color:#8b949e; text-transform:uppercase; }
+        .tarea-stat.pendiente .ts-num { color:#d29922; }
+        .tarea-stat.en-curso  .ts-num { color:#58a6ff; }
+        .tarea-stat.reparado  .ts-num { color:#3fb950; }
+        .tarea-stat.fallido   .ts-num { color:#f85149; }
+        .tarea-item { background:#0d1117; border-radius:6px; padding:10px 12px; margin-bottom:7px; border-left:3px solid #30363d; font-size:12px; }
+        .tarea-item.pendiente { border-left-color:#d29922; }
+        .tarea-item.en_curso  { border-left-color:#58a6ff; }
+        .tarea-item.reparado  { border-left-color:#3fb950; }
+        .tarea-item.fallido   { border-left-color:#f85149; }
+        .tarea-item.ignorado  { border-left-color:#8b949e; opacity:0.6; }
+        .tarea-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+        .tarea-desc   { color:#e6edf3; flex:1; }
+        .tarea-estado-badge { font-size:10px; padding:2px 6px; border-radius:3px; margin-left:8px; white-space:nowrap; }
+        .tarea-estado-badge.pendiente { background:#3d2f00; color:#d29922; }
+        .tarea-estado-badge.en_curso  { background:#1a2a4a; color:#58a6ff; }
+        .tarea-estado-badge.reparado  { background:#1a4a1a; color:#3fb950; }
+        .tarea-estado-badge.fallido   { background:#3d1f1f; color:#f85149; }
+        .tarea-meta      { color:#8b949e; font-size:10px; margin-top:2px; }
+        .tarea-resultado { color:#8b949e; font-size:11px; margin-top:3px; font-style:italic; }
+        .scroll-box { max-height:320px; overflow-y:auto; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .pulsing { animation:pulse 1.5s infinite; }
+        .monitor-panel { background:#0d1117; border-radius:8px; padding:16px; margin-bottom:16px; }
+        .monitor-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+        .monitor-row label { color:#8b949e; font-size:12px; min-width:100px; }
+        .monitor-input { background:#161b22; border:1px solid #30363d; color:#e6edf3; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px; width:80px; }
+        .monitor-input:focus { outline:none; border-color:#58a6ff; }
+        .toggle-btn { padding:6px 16px; font-size:12px; border-radius:4px; cursor:pointer; border:none; font-family:monospace; transition:background 0.2s; }
+        .toggle-btn.on  { background:#1a4a1a; color:#3fb950; border:1px solid #3fb950; }
+        .toggle-btn.off { background:#3d1f1f; color:#f85149; border:1px solid #f85149; }
+        .tokens-hist-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #1e1e22; font-size:12px; }
+        .tokens-hist-item:last-child { border-bottom:none; }
+        .tokens-hist-fecha { color:#8b949e; min-width:90px; }
+        .tokens-hist-bars { flex:1; display:flex; flex-direction:column; gap:3px; }
+        .tokens-hist-bar-wrap { display:flex; align-items:center; gap:6px; }
+        .tokens-hist-bar { height:5px; border-radius:3px; min-width:2px; transition:width 0.4s; }
+        .tokens-hist-num { color:#e6edf3; min-width:55px; text-align:right; }
+        .tokens-hist-hoy { background:#1a2a4a; border-radius:4px; padding:2px 6px; font-size:10px; color:#58a6ff; margin-left:4px; }
+        .tokens-hist-modelo { color:#8b949e; font-size:10px; margin-top:2px; }
+
+        /* ── Status indicator ── */
+        #estado-wrapper { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; position:relative; }
+        #estado-dot { width:8px; height:8px; border-radius:50%; background:#3fb950; box-shadow:0 0 6px #3fb950; transition:background 0.4s, box-shadow 0.4s; }
+        #estado-dot.warn     { background:#d29922; box-shadow:0 0 6px #d29922; }
+        #estado-dot.critical { background:#f85149; box-shadow:0 0 8px #f85149; animation:pulse 1s infinite; }
+        #estado-dot.offline  { background:#484f58; box-shadow:none; }
+        #estado-txt { transition:color 0.3s; }
+        #estado-txt.ok       { color:#3fb950; }
+        #estado-txt.warn     { color:#d29922; }
+        #estado-txt.critical { color:#f85149; }
+        #estado-txt.offline  { color:#484f58; }
+        #estado-tooltip {
+            display:none; position:absolute; top:calc(100% + 8px); right:0;
+            background:#161b22; border:1px solid #30363d; border-radius:8px;
+            padding:12px 16px; min-width:260px; z-index:500; font-size:12px;
+        }
+        #estado-tooltip.show { display:block; }
+        #estado-tooltip .tt-title { font-size:11px; color:#8b949e; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
+        #estado-tooltip .tt-item { padding:4px 0; border-bottom:1px solid #21262d; display:flex; align-items:center; gap:8px; }
+        #estado-tooltip .tt-item:last-child { border-bottom:none; }
+        #estado-tooltip .tt-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+        #estado-tooltip .tt-dot.red    { background:#f85149; }
+        #estado-tooltip .tt-dot.yellow { background:#d29922; }
+        #estado-tooltip .tt-dot.green  { background:#3fb950; }
+        #estado-tooltip .tt-item .tt-dismiss {
+            margin-left:auto; background:none; border:none; color:#484f58;
+            cursor:pointer; font-size:13px; padding:0 2px; line-height:1;
+            border-radius:3px; transition:color 0.15s;
+        }
+        #estado-tooltip .tt-item .tt-dismiss:hover { color:#f85149; }
+        #tt-footer {
+            margin-top:10px; padding-top:8px; border-top:1px solid #21262d;
+            display:flex; justify-content:flex-end; gap:6px;
+        }
+        .tt-btn {
+            background:#21262d; border:1px solid #30363d; color:#8b949e;
+            padding:3px 10px; border-radius:4px; font-size:11px;
+            cursor:pointer; font-family:monospace; transition:all 0.15s;
+        }
+        .tt-btn:hover { background:#30363d; color:#e6edf3; }
+        .tt-btn.green { border-color:#3fb950; color:#3fb950; }
+        .tt-btn.green:hover { background:#1a4a1a; }
+
+        /* ── Console ── */
+        #panel-console { background:#0d1117; }
+        .consola-wrap { display:flex; flex-direction:column; height:100%; gap:0; }
+        .consola-toolbar {
+            display:flex; align-items:center; gap:8px; padding:10px 16px;
+            background:#161b22; border-bottom:1px solid #30363d; flex-wrap:wrap;
+        }
+        .consola-toolbar span { font-size:12px; color:#8b949e; }
+        .shortcut-btn {
+            background:#0d1117; border:1px solid #30363d; color:#8b949e;
+            padding:4px 10px; border-radius:4px; font-size:11px; font-family:monospace;
+            cursor:pointer; transition:all 0.15s;
+        }
+        .shortcut-btn:hover { background:#21262d; color:#e6edf3; border-color:#58a6ff; }
+        #consola-output {
+            flex:1; overflow-y:auto; padding:16px;
+            font-family:monospace; font-size:13px; line-height:1.6;
+            color:#c9d1d9; background:#0d1117;
+            min-height:0;
+        }
+        .consola-line { margin-bottom:2px; white-space:pre-wrap; word-break:break-all; }
+        .consola-line.prompt-line { color:#58a6ff; }
+        .consola-line.output-line { color:#c9d1d9; }
+        .consola-line.error-line  { color:#f85149; }
+        .consola-line.info-line   { color:#8b949e; font-style:italic; }
+        .consola-line.warn-confirm { color:#d29922; }
+        #consola-input-row {
+            display:flex; align-items:center; gap:0;
+            padding:10px 16px; border-top:1px solid #30363d;
+            background:#161b22;
+        }
+        #consola-prompt-label {
+            color:#58a6ff; font-size:13px; font-family:monospace;
+            white-space:nowrap; margin-right:8px; user-select:none;
+        }
+        #consola-input {
+            flex:1; background:transparent; border:none; outline:none;
+            color:#e6edf3; font-family:monospace; font-size:13px; caret-color:#58a6ff;
+        }
+        .consola-danger-modal {
+            display:none; position:fixed; inset:0;
+            background:rgba(0,0,0,0.75); z-index:2000;
+            align-items:center; justify-content:center;
+        }
+        .consola-danger-modal.show { display:flex; }
+        .consola-danger-box {
+            background:#161b22; border:1px solid #f85149;
+            border-radius:8px; padding:24px; max-width:400px; text-align:center;
+        }
+        .consola-danger-box h3 { color:#f85149; margin-bottom:10px; }
+        .consola-danger-box p  { color:#8b949e; font-size:13px; margin-bottom:18px; }
+        .consola-danger-box code {
+            display:block; background:#0d1117; border:1px solid #30363d;
+            border-radius:4px; padding:8px 12px; color:#bc8cff;
+            font-size:12px; margin-bottom:18px; text-align:left; word-break:break-all;
+        }
+
+        #perm-id-input:focus, #perm-nombre-input:focus, #log-custom:focus { outline:none; border-color:#58a6ff; }
+        #log-custom::placeholder { color:#484f58; }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <span>⚡ Jarvis — Server Assistant</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn-warn" onclick="confirmSystemAction('reiniciar')" style="padding:6px 12px;font-size:12px;">↺ Restart</button>
+            <button class="btn-danger" onclick="confirmSystemAction('apagar')" style="padding:6px 12px;font-size:12px;">⏻ Shut Down</button>
+            <div id="estado-wrapper" onclick="toggleTooltip()">
+                <div id="estado-dot"></div>
+                <span id="estado-txt" class="ok">Online</span>
+                <div id="estado-tooltip">
+                    <div class="tt-title">System status</div>
+                    <div id="tt-content"><div style="color:#8b949e;font-size:12px;">Loading...</div></div>
+                    <div id="tt-footer" style="display:none;">
+                        <button class="tt-btn" onclick="event.stopPropagation();dismissAllHealth()">✓ Mark all as read</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="tabs">
+        <div class="tab active" onclick="switchTab('chat',this)">💬 Chat</div>
+        <div class="tab" onclick="switchTab('dashboard',this)">📊 Dashboard</div>
+        <div class="tab" onclick="switchTab('history',this)">📜 History</div>
+        <div class="tab" onclick="switchTab('logs',this)">📋 Logs</div>
+        <div class="tab" onclick="switchTab('ai',this)">🤖 AI / Activity</div>
+        <div class="tab" onclick="switchTab('console',this)">💻 Console</div>
+    </div>
+    <div id="content">
+        <!-- CHAT -->
+        <div id="panel-chat">
+            <div id="chat"></div>
+            <div id="input-area">
+                <input id="input" type="text" placeholder="Ask something..."/>
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div id="panel-dashboard">
+            <div class="grid">
+                <div class="card"><h3>🖥️ CPU</h3><div class="stat ok" id="cpu-stat">--%</div><div class="stat-label">Current usage</div><div class="chart-container"><canvas id="cpu-chart"></canvas></div></div>
+                <div class="card"><h3>🧠 RAM</h3><div class="stat ok" id="ram-stat">--%</div><div class="stat-label" id="ram-label">-- / -- GB</div><div class="chart-container"><canvas id="ram-chart"></canvas></div></div>
+                <div class="card"><h3>💾 Disk</h3><div class="stat ok" id="disco-stat">--%</div><div class="stat-label" id="disco-label">-- GB free</div></div>
+                <div class="card"><h3>🌡️ Temperature</h3><div class="stat ok" id="temp-stat">--°C</div><div class="stat-label">CPU</div></div>
+                <div class="card" style="grid-column:1/-1;"><h3>🌐 Red</h3><div class="net-stats"><span class="net-down">▼ <span id="recv-stat">--</span></span><span class="net-up">▲ <span id="sent-stat">--</span></span></div><div class="chart-container" style="height:140px;"><canvas id="net-chart"></canvas></div></div>
+            </div>
+            <div class="card">
+                <h3>🐳 Docker Containers</h3>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button onclick="dockerUp()">▶ Start all</button>
+                    <button onclick="confirmDockerDown()" class="btn-danger">⏹ Stop all</button>
+                </div>
+                <div class="containers-list" id="containers-list"><div style="color:#8b949e;padding:10px;text-align:center;">Loading...</div></div>
+            </div>
+        </div>
+
+        <!-- HISTORIAL -->
+        <div id="panel-history">
+            <div class="card"><h3>📜 History</h3><div id="historial-lista" style="margin-top:15px;"></div></div>
+        </div>
+
+        <!-- LOGS -->
+        <div id="panel-logs">
+            <div class="card">
+                <h3>📋 Real-time logs</h3>
+                <div style="margin:12px 0 8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                    <select id="log-select" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:8px;border-radius:6px;font-family:monospace;min-width:160px;"></select>
+                    <input id="log-custom" type="text" placeholder="Custom service..." style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:8px;border-radius:6px;font-family:monospace;width:160px;" title="Custom container or service name">
+                    <button onclick="loadLogs()">↺ Refresh</button>
+                    <button onclick="clearLogsPanel()" class="btn-sm">🗑 Clear</button>
+                    <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#8b949e;cursor:pointer;">
+                        <input type="checkbox" id="auto-refresh" checked onchange="toggleAutoLogs()"> Auto-refresh
+                    </label>
+                    <div style="display:flex;align-items:center;gap:5px;">
+                        <span style="font-size:12px;color:#8b949e;">Every</span>
+                        <select id="logs-interval-sel" onchange="cambiarIntervaloLogs()" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:4px 6px;border-radius:4px;font-family:monospace;font-size:12px;">
+                            <option value="1000" selected>1s</option>
+                            <option value="3000">3s</option>
+                            <option value="5000">5s</option>
+                            <option value="10000">10s</option>
+                            <option value="30000">30s</option>
+                        </select>
+                    </div>
+                    <span id="logs-status" style="font-size:11px;color:#8b949e;margin-left:auto;"></span>
+                </div>
+                <div id="logs-output" style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:15px;height:500px;overflow-y:auto;font-size:12px;white-space:pre-wrap;color:#8b949e;"></div>
+            </div>
+        </div>
+
+        <!-- IA / ACTIVIDAD -->
+        <div id="panel-ai">
+            <div class="ia-grid">
+                <div class="ia-stat-card" id="ia-card-tokens" style="grid-column:span 2;">
+                    <div class="label">Tokens used today</div>
+                    <div style="display:flex;gap:20px;align-items:flex-end;">
+                        <div>
+                            <div class="value" id="ia-tokens-used">0</div>
+                            <div class="sub" id="ia-tokens-sub">today total</div>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="display:flex;justify-content:space-between;font-size:11px;color:#8b949e;margin-bottom:4px;">
+                                <span>🌐 Web: <span id="ia-tokens-web" style="color:#58a6ff;">0</span></span>
+                                <span>💬 Discord: <span id="ia-tokens-discord" style="color:#bc8cff;">0</span></span>
+                                <span>Remaining: <span id="ia-tokens-rest" style="color:#3fb950;">200,000</span></span>
+                            </div>
+                            <div class="token-bar-big">
+                                <div id="ia-bar-web"     style="height:8px;border-radius:6px 0 0 6px;background:#58a6ff;float:left;transition:width 0.5s;"></div>
+                                <div id="ia-bar-discord" style="height:8px;border-radius:0 6px 6px 0;background:#bc8cff;float:left;transition:width 0.5s;"></div>
+                            </div>
+                            <div style="clear:both;"></div>
+                            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#8b949e;">
+                                <span id="ia-tokens-fecha">today</span>
+                                <span id="ia-ultima-sync"></span>
+                                <button onclick="resetTokens()" style="background:none;border:1px solid #30363d;color:#8b949e;padding:2px 8px;font-size:10px;cursor:pointer;border-radius:3px;">↺ Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ia-stat-card">
+                    <div class="label">Active model</div>
+                    <div class="value" id="ia-modelo-nombre" style="font-size:11px;padding-top:6px;word-break:break-all;">loading...</div>
+                    <div class="sub"><span class="status-dot green"></span>OpenRouter — online</div>
+                </div>
+                <div class="ia-stat-card" id="ia-card-alertas">
+                    <div class="label">Active alerts</div>
+                    <div class="value green" id="ia-alertas-count">0</div>
+                    <div class="sub" id="ia-alertas-sub">system stable</div>
+                </div>
+                <div class="ia-stat-card" id="ia-card-tareas">
+                    <div class="label">Repair tasks</div>
+                    <div class="value green" id="ia-tareas-count">0</div>
+                    <div class="sub" id="ia-tareas-sub">no tasks</div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                <div class="seccion-titulo"><span>📈 Token history (last 30 days)</span><button onclick="loadTokenHistory()">↺</button></div>
+                <div id="tokens-historial-lista"><div class="empty-state">Loading...</div></div>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                    <div class="seccion-titulo"><span>🛡️ Monitor Control</span><button onclick="loadMonitor()">↺ Refresh</button></div>
+                <div class="monitor-panel">
+                    <div class="monitor-row">
+                        <label>Status:</label>
+                        <button id="monitor-toggle-btn" class="toggle-btn on" onclick="toggleMonitor()">● Active</button>
+                        <span id="monitor-status-txt" style="font-size:12px;color:#8b949e;"></span>
+                    </div>
+                    <div class="monitor-row">
+                        <label>Interval:</label>
+                        <input type="number" id="monitor-interval" class="monitor-input" value="300" min="60" max="3600" step="60">
+                        <span style="font-size:12px;color:#8b949e;">seconds</span>
+                        <span id="monitor-interval-min" style="font-size:11px;color:#8b949e;"></span>
+                    </div>
+                    <div class="monitor-row">
+                        <label>CPU threshold:</label>
+                        <input type="number" id="monitor-cpu" class="monitor-input" value="90" min="50" max="100">
+                        <span style="font-size:12px;color:#8b949e;">%</span>
+                        <label style="margin-left:20px;">RAM:</label>
+                        <input type="number" id="monitor-ram" class="monitor-input" value="85" min="50" max="100">
+                        <span style="font-size:12px;color:#8b949e;">%</span>
+                    </div>
+                    <div class="monitor-row">
+                        <label>Disk threshold:</label>
+                        <input type="number" id="monitor-disk" class="monitor-input" value="85" min="50" max="100">
+                        <span style="font-size:12px;color:#8b949e;">%</span>
+                        <label style="margin-left:20px;">Temp:</label>
+                        <input type="number" id="monitor-temp" class="monitor-input" value="80" min="50" max="100">
+                        <span style="font-size:12px;color:#8b949e;">°C</span>
+                    </div>
+                    <div class="monitor-row">
+                        <label>Summary hour:</label>
+                        <input type="number" id="monitor-hour" class="monitor-input" value="8" min="0" max="23">
+                        <span style="font-size:12px;color:#8b949e;">h (24h)</span>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:8px;">
+                        <button onclick="saveMonitor()" class="btn-green">💾 Save config</button>
+                        <button onclick="resetMonitor()" class="btn-sm">↺ Defaults</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                <div class="seccion-titulo"><span>🔐 Discord console permissions</span><button onclick="loadConsolePermissions()">↺ Refresh</button></div>
+                <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                    <input id="perm-id-input" type="text" placeholder="Discord User ID..." style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:180px;">
+                    <input id="perm-nombre-input" type="text" placeholder="Name (optional)" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:160px;">
+                    <button onclick="addConsolePermission()" class="btn-green" style="font-size:12px;padding:7px 14px;">+ Add</button>
+                </div>
+                <div style="font-size:11px;color:#8b949e;margin-bottom:10px;">The owner (DISCORD_DM_ID) always has full access and does not appear in this list.</div>
+                <div id="permisos-lista" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"><div class="empty-state">Loading...</div></div>
+            </div>
+            <div class="grid" style="margin-bottom:20px;">
+                <div class="card">
+                    <div class="seccion-titulo"><span>📊 Usage by Category</span></div>
+                    <div class="progreso-row"><span class="progreso-label">System</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-sistema" style="width:0%;background:#58a6ff;"></div></div><span class="progreso-valor" id="val-sistema">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Media</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-media" style="width:0%;background:#3fb950;"></div></div><span class="progreso-valor" id="val-media">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Docker</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-docker" style="width:0%;background:#bc8cff;"></div></div><span class="progreso-valor" id="val-docker">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Commands</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-cmd" style="width:0%;background:#d29922;"></div></div><span class="progreso-valor" id="val-cmd">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Home Asst.</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-ha" style="width:0%;background:#f78166;"></div></div><span class="progreso-valor" id="val-ha">0</span></div>
+                </div>
+                <div class="card">
+                    <div class="seccion-titulo"><span>🚨 Alerts</span><button onclick="clearAlerts()">Clear</button></div>
+                    <div class="alertas-lista" id="alertas-lista"><div class="empty-state">No active alerts ✓</div></div>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                <div class="seccion-titulo"><span>🔧 Repair tasks</span><button onclick="loadTasks()">↺</button></div>
+                <div class="tareas-resumen">
+                    <div class="tarea-stat pendiente"><div class="ts-num" id="t-pendientes">0</div><div class="ts-label">Pending</div></div>
+                    <div class="tarea-stat en-curso"><div class="ts-num" id="t-en-curso">0</div><div class="ts-label">In Progress</div></div>
+                    <div class="tarea-stat reparado"><div class="ts-num" id="t-reparados">0</div><div class="ts-label">Fixed</div></div>
+                    <div class="tarea-stat fallido"><div class="ts-num" id="t-fallidos">0</div><div class="ts-label">Failed</div></div>
+                </div>
+                <div class="scroll-box" id="tareas-lista"><div class="empty-state">No tasks ✓</div></div>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+                <div class="seccion-titulo"><span>⚡ Recent activity</span><button onclick="loadActivity()">↺</button></div>
+                <div class="actividad-lista" id="actividad-lista"><div class="empty-state">No activity yet</div></div>
+            </div>
+            <div class="card">
+                <div class="seccion-titulo"><span>💻 Command history</span><button onclick="loadCommands()">↺</button></div>
+                <div class="cmds-lista" id="cmds-lista"><div class="empty-state">No commands yet</div></div>
+            </div>
+        </div>
+
+        <!-- CONSOLA -->
+        <div id="panel-console">
+            <div class="consola-wrap" style="height:calc(100vh - 130px);">
+                <div class="consola-toolbar">
+                    <span style="color:#58a6ff;font-weight:bold;">fabio@jarvis</span>
+                    <span style="color:#30363d;">|</span>
+                    <span id="consola-cwd-label" style="color:#bc8cff;">/srv/nas</span>
+                    <span style="color:#30363d;margin-left:4px;">|</span>
+                    <span>Shortcuts:</span>
+                    <button class="shortcut-btn" onclick="consolaShortcut('ps aux --sort=-%cpu | head -15')">ps</button>
+                    <button class="shortcut-btn" onclick="consolaShortcut('df -h')">df</button>
+                    <button class="shortcut-btn" onclick="consolaShortcut('free -h')">mem</button>
+                    <button class="shortcut-btn" onclick="consolaShortcut('cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | awk \'{print $1/1000\"°C\"}\'')">temp</button>
+                    <button class="shortcut-btn" onclick="consolaShortcut('ss -tlnp')">ports</button>
+                    <button class="shortcut-btn" onclick="consolaShortcut('ip -brief addr')">net</button>
+                    <button class="shortcut-btn" onclick="consolaShortcut('uptime')">uptime</button>
+                    <button class="shortcut-btn" onclick="consolaShortcut('docker ps -a --format \"table {{.Names}}\t{{.Status}}\t{{.Ports}}\"')">docker ps</button>
+                    <button class="shortcut-btn btn-danger" onclick="consolaLimpiar()" style="margin-left:auto;">🗑 Clear</button>
+                </div>
+                <div id="consola-output"></div>
+                <div id="consola-input-row">
+                    <span id="consola-prompt-label">fabio@jarvis:/srv/nas$</span>
+                    <input id="consola-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="command..."/>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating alerts -->
+    <div id="alertas"></div>
+
+    <!-- System confirmation modal -->
+    <div id="modal" class="modal">
+        <div class="modal-box">
+            <h3 id="modal-titulo">Are you sure?</h3>
+            <p id="modal-texto"></p>
+            <div class="modal-btns">
+                <button onclick="closeModal()" style="background:#21262d;">Cancel</button>
+                <button id="modal-confirm" class="btn-danger">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dangerous console command modal -->
+    <div id="consola-danger-modal" class="consola-danger-modal">
+        <div class="consola-danger-box">
+            <h3>⚠️ Dangerous command</h3>
+            <p>This can cause data loss or interruptions.</p>
+            <code id="consola-danger-cmd"></code>
+            <div class="modal-btns">
+                <button onclick="cerrarConsolaDanger()" style="background:#21262d;">Cancel</button>
+                <button class="btn-danger" onclick="ejecutarConsolaDangerConfirmado()">Run anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status bar -->
+    <div style="position:fixed;bottom:0;left:0;right:0;background:#010409;border-top:1px solid #30363d;padding:6px 20px;display:flex;gap:14px;align-items:center;font-size:11px;color:#8b949e;z-index:100;">
+        <span>🤖 <span id="bar-modelo">loading...</span></span>
+        <span>|</span>
+        <span>🌐 Web: <span id="bar-web-tokens" style="color:#58a6ff;">0</span></span>
+        <span>💬 Discord: <span id="bar-discord-tokens" style="color:#bc8cff;">0</span></span>
+        <span>Total: <span id="tokens-used-bar" style="color:#e6edf3;">0</span> / <span id="tokens-total-bar" style="color:#8b949e;">200,000</span></span>
+        <span>|</span>
+        <div style="flex:1;background:#21262d;border-radius:4px;height:6px;max-width:160px;overflow:hidden;">
+            <div id="bar-web-fill"     style="background:#58a6ff;height:6px;float:left;transition:width 0.5s;"></div>
+            <div id="bar-discord-fill" style="background:#bc8cff;height:6px;float:left;transition:width 0.5s;"></div>
+        </div>
+        <span id="bar-monitor-status" style="margin-left:auto;color:#3fb950;">🛡️ Monitor active</span>
+    </div>
+
+    <script>
+        const chat  = document.getElementById('chat');
+        const input = document.getElementById('input');
+        let logsInterval    = null;
+        let pendingAction = null;
+        let activeAlerts = [];
+        let tooltipOpen = false;
+
+        // ── Tabs ──────────────────────────────────────────────────────
+        function switchTab(name, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            ['chat','dashboard','history','logs','ai','console'].forEach(p => {
+                const panel = document.getElementById('panel-'+p);
+                if (panel) panel.style.display = (p === name) ? (p === 'chat' ? 'flex' : 'block') : 'none';
+            });
+            clearInterval(logsInterval);
+            if (name === 'history') loadHistory();
+            if (name === 'ai') {
+                loadActivity(); loadCommands(); loadTasks();
+                loadMonitor(); refreshTokens(); updateAiPanel();
+                loadTokenHistory(); loadConsolePermissions();
+            }
+            if (name === 'logs') {
+                populateLogSelect(); loadLogs();
+                if (document.getElementById('auto-refresh').checked) {
+                    const ms = parseInt(document.getElementById('logs-interval-sel').value) || 1000;
+                    logsInterval = setInterval(loadLogs, ms);
+                }
+            }
+            if (name === 'console') {
+                setTimeout(() => document.getElementById('consola-input').focus(), 50);
+            }
+        }
+
+        // ── Status indicator ──────────────────────────────────────────
+        let currentStatus = 'ok';
+
+        // Keys dismissed by the user until they change
+        let _dismissedHealthItems = new Set();
+        let _healthSnapshot = {};
+
+        function toggleTooltip() {
+            const tt = document.getElementById('estado-tooltip');
+            tooltipOpen = !tooltipOpen;
+            tt.classList.toggle('show', tooltipOpen);
+        }
+        document.addEventListener('click', e => {
+            if (!document.getElementById('estado-wrapper').contains(e.target)) {
+                tooltipOpen = false;
+                document.getElementById('estado-tooltip').classList.remove('show');
+            }
+        });
+
+        function dismissHealthItem(key, event) {
+            if (event) event.stopPropagation();
+            _dismissedHealthItems.add(key);
+            renderTooltipWithDismissals();
+        }
+
+        function dismissAllHealth() {
+            Object.keys(_healthSnapshot).forEach(key => _dismissedHealthItems.add(key));
+            renderTooltipWithDismissals();
+            updateIndicatorWithDismissals();
+        }
+
+        function renderTooltipWithDismissals() {
+            const ttc = document.getElementById('tt-content');
+            const footer = document.getElementById('tt-footer');
+            const items = Object.values(_healthSnapshot).filter(item => !_dismissedHealthItems.has(item.key));
+
+            if (!items.length) {
+                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot green"></div><span style="color:#3fb950;">Everything is fine (or dismissed)</span></div>';
+                footer.style.display = 'none';
+            } else {
+                ttc.innerHTML = items.map(item =>
+                    `<div class="tt-item">
+                        <div class="tt-dot ${item.type}"></div>
+                        <span style="flex:1;">${item.text}</span>
+                        <button class="tt-dismiss" title="Dismiss" onclick="dismissHealthItem('${item.key}', event)">✕</button>
+                    </div>`
+                ).join('');
+                footer.style.display = 'flex';
+            }
+        }
+
+        function updateIndicatorWithDismissals() {
+            const dot = document.getElementById('estado-dot');
+            const txt = document.getElementById('estado-txt');
+            const visibleItems = Object.values(_healthSnapshot).filter(item => !_dismissedHealthItems.has(item.key));
+            const hasCritical = visibleItems.some(item => item.type === 'red');
+            const hasWarnings = visibleItems.some(item => item.type === 'yellow');
+
+            if (!visibleItems.length) {
+                dot.className = ''; txt.className = 'ok'; txt.textContent = '● Online';
+            } else if (hasCritical) {
+                dot.className = 'critical'; txt.className = 'critical'; txt.textContent = '🔴 Critical';
+            } else if (hasWarnings) {
+                dot.className = 'warn'; txt.className = 'warn'; txt.textContent = '⚠ Warnings';
+            }
+        }
+
+        async function refreshStatus() {
+            const dot = document.getElementById('estado-dot');
+            const txt = document.getElementById('estado-txt');
+            const ttc = document.getElementById('tt-content');
+            try {
+                const res  = await fetch('/health');
+                const data = await res.json();
+                const level = data.level || 'ok';
+                currentStatus = level;
+
+                const nextSnapshot = {};
+                const items = [
+                    ...(data.critical_issues || []).map(item => ({key:`p:${item}`, type:'red', text:item})),
+                    ...(data.warnings || []).map(item => ({key:`a:${item}`, type:'yellow', text:item})),
+                ];
+                items.forEach(item => { nextSnapshot[item.key] = item; });
+
+                [..._dismissedHealthItems].forEach(key => {
+                    if (!nextSnapshot[key]) _dismissedHealthItems.delete(key);
+                });
+
+                _healthSnapshot = nextSnapshot;
+
+                let threadsHtml = '';
+                if (data.threads && Object.keys(data.threads).length) {
+                    threadsHtml = '<div class="tt-title" style="margin-top:10px;">Threads</div>' +
+                        Object.entries(data.threads).map(([key, value]) =>
+                            `<div class="tt-item"><div class="tt-dot ${value==='alive'?'green':'red'}"></div><span>${key}: ${value}</span></div>`
+                        ).join('');
+                }
+
+                _healthSnapshot.__threads__ = { key:'__threads__', threadsHtml };
+
+                renderTooltipWithDismissals();
+
+                if (threadsHtml) ttc.innerHTML += threadsHtml;
+
+                updateIndicatorWithDismissals();
+
+            } catch(e) {
+                dot.className = 'offline';
+                txt.className = 'offline';
+                txt.textContent = '○ Offline';
+                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot red"></div><span style="color:#f85149;">No response from the server</span></div>';
+                document.getElementById('tt-footer').style.display = 'none';
+            }
+        }
+
+        // ── Chat ──────────────────────────────────────────────────────
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+        async function sendMessage() {
+            const text = input.value.trim(); if (!text) return;
+            const userBubble = document.createElement('div'); userBubble.className = 'mensaje usuario'; userBubble.textContent = text;
+            chat.appendChild(userBubble); input.value = ''; chat.scrollTop = chat.scrollHeight;
+            const assistantBubble = document.createElement('div'); assistantBubble.className = 'mensaje asistente';
+            assistantBubble.innerHTML = '<span style="color:#8b949e;">⚡ Processing...</span>';
+            chat.appendChild(assistantBubble); chat.scrollTop = chat.scrollHeight;
+            try {
+                const res  = await fetch('/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})});
+                const data = await res.json();
+                assistantBubble.textContent = data.reply;
+                refreshTokens();
+                setTimeout(loadActivity, 1500);
+            } catch(e) { assistantBubble.textContent = '❌ Error connecting to Jarvis.'; }
+        }
+
+        // ── Dashboard ─────────────────────────────────────────────────
+        async function restartContainer(name) {
+            const res  = await fetch(`/docker/restart/${name}`, {method:'POST'});
+            const data = await res.json();
+            showAlert(data.message, data.ok ? 'success' : 'danger');
+        }
+        async function dockerUp() {
+            const data = (await(await fetch('/docker/up', {method:'POST'})).json());
+            showAlert(data.message, data.ok ? 'success' : 'danger');
+        }
+        function showAlert(message, type) {
+            const alertNode = document.createElement('div'); alertNode.className = `alerta ${type}`; alertNode.textContent = message;
+            document.getElementById('alertas').appendChild(alertNode); setTimeout(() => alertNode.remove(), 5000);
+        }
+        function colorStat(element, value, warn, danger) {
+            element.classList.remove('ok','warn','danger');
+            element.classList.add(value >= danger ? 'danger' : value >= warn ? 'warn' : 'ok');
+        }
+
+        const makeChart = (id, color) => new Chart(document.getElementById(id), {
+            type:'line', data:{labels:Array(20).fill(''), datasets:[{data:Array(20).fill(0), borderColor:color, borderWidth:2, fill:true, backgroundColor:color+'22', tension:0.4, pointRadius:0}]},
+            options:{animation:false, plugins:{legend:{display:false}}, scales:{x:{display:false}, y:{display:false, min:0}}}
+        });
+        const cpuChart = makeChart('cpu-chart','#58a6ff');
+        const ramChart = makeChart('ram-chart','#3fb950');
+        const netChart = new Chart(document.getElementById('net-chart'), {
+            type:'line', data:{labels:Array(20).fill(''), datasets:[
+                {label:'▼', data:Array(20).fill(0), borderColor:'#3fb950', borderWidth:2, fill:false, tension:0.4, pointRadius:0},
+                {label:'▲', data:Array(20).fill(0), borderColor:'#f78166', borderWidth:2, fill:false, tension:0.4, pointRadius:0}
+            ]}, options:{animation:false, plugins:{legend:{display:true, labels:{color:'#8b949e', boxWidth:12}}}, scales:{x:{display:false}, y:{display:true, ticks:{color:'#8b949e'}, grid:{color:'#21262d'}}}}
+        });
+
+        let cpuAlertShown = false, ramAlertShown = false, diskAlertShown = false;
+
+        async function refreshDashboard() {
+            try {
+                const res = await fetch('/stats'); const d = await res.json();
+                document.getElementById('cpu-stat').textContent   = d.cpu + '%';        colorStat(document.getElementById('cpu-stat'),   d.cpu,        70, 90);
+                document.getElementById('ram-stat').textContent   = d.ram_pct + '%';    colorStat(document.getElementById('ram-stat'),   d.ram_pct,    70, 90);
+                document.getElementById('disco-stat').textContent = d.disk_pct + '%';   colorStat(document.getElementById('disco-stat'), d.disk_pct,   70, 90);
+                document.getElementById('ram-label').textContent   = `${d.ram_used}GB / ${d.ram_total}GB`;
+                document.getElementById('disco-label').textContent = `${d.disk_free}GB free`;
+
+                // Network - these are real KB/s values from the server
+                document.getElementById('recv-stat').textContent = formatNet(d.recv_kbps);
+                document.getElementById('sent-stat').textContent = formatNet(d.sent_kbps);
+
+                const tempEl = document.getElementById('temp-stat'); tempEl.textContent = d.temp ? d.temp + '°C' : '--°C';
+                if (d.temp) colorStat(tempEl, d.temp, 70, 85);
+
+                if (d.cpu >= 90 && !cpuAlertShown) { showAlert(`⚠️ CPU at ${d.cpu}%!`, 'danger'); addPanelAlert('critical', `🔴 CPU at ${d.cpu}%`, 'dash-cpu'); cpuAlertShown = true; } else if (d.cpu < 80) { cpuAlertShown = false; activeAlerts = activeAlerts.filter(alert => alert.key !== 'dash-cpu'); renderAlerts(); }
+                if (d.ram_pct >= 85 && !ramAlertShown) { showAlert(`⚠️ RAM at ${d.ram_pct}%!`, 'danger'); addPanelAlert('critical', `🔴 RAM at ${d.ram_pct}%`, 'dash-ram'); ramAlertShown = true; } else if (d.ram_pct < 75) { ramAlertShown = false; activeAlerts = activeAlerts.filter(alert => alert.key !== 'dash-ram'); renderAlerts(); }
+                if (d.disk_pct >= 85 && !diskAlertShown) { showAlert(`⚠️ Disk at ${d.disk_pct}%!`, 'danger'); addPanelAlert('critical', `🔴 Disk at ${d.disk_pct}%`, 'dash-disk'); diskAlertShown = true; } else if (d.disk_pct < 75) { diskAlertShown = false; activeAlerts = activeAlerts.filter(alert => alert.key !== 'dash-disk'); renderAlerts(); }
+
+                const runningNames = new Set((d.containers||[]).filter(container => container.status === 'running').map(container => container.name));
+                (d.containers||[]).filter(container => container.status !== 'running').forEach(container => {
+                    if (!activeAlerts.find(alert => alert.key === `c-${container.name}`))
+                        addPanelAlert('warning', `⚠️ Container down: ${container.name}`, `c-${container.name}`);
+                });
+                activeAlerts = activeAlerts.filter(alert => {
+                    if (!alert.key.startsWith('c-')) return true;
+                    return !runningNames.has(alert.key.slice(2));
+                });
+                renderAlerts();
+
+                cpuChart.data.datasets[0].data.push(d.cpu);        cpuChart.data.datasets[0].data.shift(); cpuChart.update();
+                ramChart.data.datasets[0].data.push(d.ram_pct);     ramChart.data.datasets[0].data.shift(); ramChart.update();
+                netChart.data.datasets[0].data.push(d.recv_kbps);   netChart.data.datasets[0].data.shift();
+                netChart.data.datasets[1].data.push(d.sent_kbps);   netChart.data.datasets[1].data.shift(); netChart.update();
+
+                const cs = d.containers || [];
+                document.getElementById('containers-list').innerHTML = cs.length === 0
+                    ? '<div style="color:#8b949e;padding:10px;text-align:center;">⏹ No running containers</div>'
+                    : cs.map(container => `<div class="container-item"><span>${container.name}</span><div style="display:flex;gap:6px;align-items:center;"><span class="badge ${container.status}">${container.status}</span><button class="btn-restart" onclick="restartContainer('${container.name}')">↺ Restart</button></div></div>`).join('');
+            } catch(e) {}
+        }
+
+        // Readable KB/s formatting
+        function formatNet(kbps) {
+            if (kbps >= 1024) return (kbps / 1024).toFixed(1) + ' MB/s';
+            if (kbps >= 1)    return kbps.toFixed(1) + ' KB/s';
+            return (kbps * 1024).toFixed(0) + ' B/s';
+        }
+
+        // ── Tokens ────────────────────────────────────────────────────
+        async function refreshTokens() {
+            try {
+                const res = await fetch('/tokens'); const d = await res.json();
+                const web = d.web||0, disc = d.discord||0, total = d.limit||200000;
+                const used = d.used||0, pct = Math.min((used/total)*100, 100);
+                const pctWeb  = Math.min((web/total)*100, 100);
+                const pctDisc = Math.min((disc/total)*100, 100);
+                const remaining = Math.max(total-used, 0);
+                const model = d.model || 'openrouter/free';
+                const shortName = model.split('/').pop().replace(':free','').replace('-instruct','');
+                const colorTotal = pct>=90 ? '#f85149' : pct>=70 ? '#d29922' : '#58a6ff';
+                document.getElementById('ia-tokens-used').textContent   = used.toLocaleString();
+                document.getElementById('ia-tokens-sub').textContent    = `of ${total.toLocaleString()} today`;
+                document.getElementById('ia-tokens-web').textContent    = web.toLocaleString();
+                document.getElementById('ia-tokens-discord').textContent= disc.toLocaleString();
+                document.getElementById('ia-tokens-rest').textContent   = remaining.toLocaleString();
+                document.getElementById('ia-tokens-rest').style.color   = pct>=90?'#f85149':pct>=70?'#d29922':'#3fb950';
+                document.getElementById('ia-bar-web').style.width     = pctWeb+'%';
+                document.getElementById('ia-bar-discord').style.width = pctDisc+'%';
+                document.getElementById('ia-modelo-nombre').textContent = shortName;
+                document.getElementById('ia-card-tokens').className = 'ia-stat-card'+(pct>=90?' red':pct>=70?' yellow':'');
+                if (d.date)       document.getElementById('ia-tokens-fecha').textContent = 'today ' + d.date;
+                if (d.last_sync) document.getElementById('ia-ultima-sync').textContent  = 'sync: ' + d.last_sync;
+                document.getElementById('bar-modelo').textContent        = shortName;
+                document.getElementById('bar-web-tokens').textContent    = web.toLocaleString();
+                document.getElementById('bar-discord-tokens').textContent= disc.toLocaleString();
+                document.getElementById('tokens-used-bar').textContent   = used.toLocaleString();
+                document.getElementById('tokens-total-bar').textContent  = total.toLocaleString();
+                document.getElementById('tokens-used-bar').style.color   = colorTotal;
+                document.getElementById('bar-web-fill').style.width      = pctWeb+'%';
+                document.getElementById('bar-discord-fill').style.width  = pctDisc+'%';
+                if (pct >= 90) addPanelAlert('critical', `🔴 Tokens at ${Math.round(pct)}%`);
+            } catch(e) {}
+        }
+        async function resetTokens() {
+            await fetch('/tokens/reset', {method:'POST'});
+            showAlert('Token counter reset ✓', 'success');
+            refreshTokens(); loadTokenHistory();
+        }
+
+        // ── Token history ─────────────────────────────────────────────
+        async function loadTokenHistory() {
+            try {
+                const res  = await fetch('/tokens/history');
+                const data = await res.json();
+                const history = data.history || [];
+                const list = document.getElementById('tokens-historial-lista');
+                if (!history.length) { list.innerHTML = '<div class="empty-state">No history yet</div>'; return; }
+                const maxTotal = Math.max(...history.map(entry => entry.used || 0), 1);
+                list.innerHTML = history.map(entry => {
+                    const pctWeb  = Math.round(((entry.web||0) / maxTotal) * 100);
+                    const pctDisc = Math.round(((entry.discord||0) / maxTotal) * 100);
+                    const isToday = entry.is_today ? `<span class="tokens-hist-hoy">today</span>` : '';
+                    const model  = entry.model ? entry.model.split('/').pop().replace(':free','') : '';
+                    return `<div class="tokens-hist-item">
+                        <span class="tokens-hist-fecha">${entry.date||''}${isToday}</span>
+                        <div class="tokens-hist-bars">
+                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctWeb}%;background:#58a6ff;"></div><span style="font-size:10px;color:#58a6ff;">${(entry.web||0).toLocaleString()}</span></div>
+                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctDisc}%;background:#bc8cff;"></div><span style="font-size:10px;color:#bc8cff;">${(entry.discord||0).toLocaleString()}</span></div>
+                            ${model ? `<div class="tokens-hist-modelo">${model}</div>` : ''}
+                        </div>
+                        <span class="tokens-hist-num">${(entry.used||0).toLocaleString()}</span>
+                    </div>`;
+                }).join('');
+            } catch(e) {
+                document.getElementById('tokens-historial-lista').innerHTML = '<div class="empty-state">Endpoint unavailable</div>';
+            }
+        }
+
+        // ── Monitor ───────────────────────────────────────────────────
+        async function loadMonitor() {
+            try {
+                const res = await fetch('/monitor'); const d = await res.json();
+                document.getElementById('monitor-interval').value = d.interval_seconds||300;
+                document.getElementById('monitor-cpu').value       = d.cpu_threshold||90;
+                document.getElementById('monitor-ram').value       = d.ram_threshold||85;
+                document.getElementById('monitor-disk').value      = d.disk_threshold||85;
+                document.getElementById('monitor-temp').value      = d.temp_threshold||80;
+                document.getElementById('monitor-hour').value      = d.daily_summary_hour||8;
+                document.getElementById('monitor-interval-min').textContent = `= ${Math.round((d.interval_seconds||300)/60)} min`;
+                updateToggleButton(d.enabled);
+                const statusBar = document.getElementById('bar-monitor-status');
+                if (d.enabled) { statusBar.textContent = '🛡️ Monitor active'; statusBar.style.color = '#3fb950'; }
+                else          { statusBar.textContent = '⏸️ Monitor paused'; statusBar.style.color = '#d29922'; }
+            } catch(e) {}
+        }
+        function updateToggleButton(enabled) {
+            const btn = document.getElementById('monitor-toggle-btn');
+            const txt = document.getElementById('monitor-status-txt');
+            if (enabled) { btn.textContent = '● Active';  btn.className = 'toggle-btn on';  txt.textContent = 'Monitoring in the background'; }
+            else        { btn.textContent = '○ Paused'; btn.className = 'toggle-btn off'; txt.textContent = 'Monitor is not running'; }
+        }
+        async function toggleMonitor() {
+            const res  = await fetch('/monitor/toggle', {method:'POST'});
+            const data = await res.json();
+            updateToggleButton(data.enabled);
+            showAlert(data.message, data.enabled ? 'success' : 'warning');
+            loadMonitor();
+        }
+        async function saveMonitor() {
+            const intervalSeconds = parseInt(document.getElementById('monitor-interval').value);
+            const config = {interval_seconds: intervalSeconds, cpu_threshold:parseInt(document.getElementById('monitor-cpu').value), ram_threshold:parseInt(document.getElementById('monitor-ram').value), disk_threshold:parseInt(document.getElementById('monitor-disk').value), temp_threshold:parseInt(document.getElementById('monitor-temp').value), daily_summary_hour:parseInt(document.getElementById('monitor-hour').value)};
+            const res  = await fetch('/monitor', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(config)});
+            const data = await res.json();
+            if (data.ok) { showAlert('Config saved ✓', 'success'); document.getElementById('monitor-interval-min').textContent = `= ${Math.round(intervalSeconds/60)} min`; }
+        }
+        async function resetMonitor() {
+            await fetch('/monitor', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({interval_seconds:300, cpu_threshold:90, ram_threshold:85, disk_threshold:85, temp_threshold:80, daily_summary_hour:8})});
+            loadMonitor(); showAlert('Monitor reset', 'success');
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const intervalInput = document.getElementById('monitor-interval');
+            if (intervalInput) intervalInput.addEventListener('input', () => { document.getElementById('monitor-interval-min').textContent = `= ${Math.round(parseInt(intervalInput.value||300)/60)} min`; });
+        });
+
+        // ── AI panel ──────────────────────────────────────────────────
+        function addPanelAlert(type, text, key) {
+            const alertKey = key || text;
+            if (activeAlerts.find(alert => alert.key === alertKey)) return;
+            const time = new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+            activeAlerts.unshift({type, text, time, key: alertKey});
+            if (activeAlerts.length > 20) activeAlerts.pop();
+            renderAlerts();
+        }
+        function renderAlerts() {
+            const list = document.getElementById('alertas-lista'), count = document.getElementById('ia-alertas-count'), sub = document.getElementById('ia-alertas-sub'), card = document.getElementById('ia-card-alertas');
+            count.textContent = activeAlerts.length;
+            if (!activeAlerts.length) {
+                list.innerHTML = '<div class="empty-state">No alerts ✓</div>';
+                count.className = 'value green'; sub.textContent = 'system stable'; card.className = 'ia-stat-card green';
+            } else {
+                const criticalCount = activeAlerts.filter(alert => alert.type === 'critical').length;
+                count.className = criticalCount>0 ? 'value red' : 'value yellow';
+                sub.textContent = criticalCount>0 ? `${criticalCount} critical` : 'warnings';
+                card.className  = criticalCount>0 ? 'ia-stat-card red' : 'ia-stat-card yellow';
+                list.innerHTML = activeAlerts.map(alert =>
+                    `<div class="alerta-item ${alert.type}" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="flex:1;">${alert.text}</span>
+                        <span class="alerta-item-tiempo" style="margin:0 8px;">${alert.time}</span>
+                        <button onclick="dismissPanelAlert('${alert.key}')" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:13px;padding:0 2px;" title="Dismiss">✕</button>
+                    </div>`
+                ).join('');
+            }
+        }
+        function dismissPanelAlert(key) {
+            activeAlerts = activeAlerts.filter(alert => alert.key !== key);
+            if (key.startsWith('health-')) _dismissedHealthItems.add(key.replace('health-', ''));
+            renderAlerts();
+        }
+        function clearAlerts() {
+            activeAlerts.forEach(alert => {
+                if (alert.key && alert.key.startsWith('health-')) _dismissedHealthItems.add(alert.key.replace('health-', ''));
+            });
+            activeAlerts = [];
+            renderAlerts();
+        }
+
+        async function updateAiPanel() {
+            try {
+                const res  = await fetch('/activity'); const data = await res.json(); const logs = data.activity || [];
+                const categories = {system:0, media:0, docker:0, commands:0, home:0};
+                logs.forEach(log => {
+                    const badge = (log.badge||'').toLowerCase();
+                    if      (badge.includes('media')||badge.includes('jellyseerr')||badge.includes('radarr')||badge.includes('sonarr')||badge.includes('jellyfin')||badge.includes('downloads')) categories.media++;
+                    else if (badge.includes('docker'))  categories.docker++;
+                    else if (badge.includes('command')||badge.includes('console')||badge.includes('cmd')) categories.commands++;
+                    else if (badge.includes('home')||badge.includes('assistant')) categories.home++;
+                    else categories.system++;
+                });
+                const total = Object.values(categories).reduce((a,b)=>a+b,0) || 1;
+                [['system','#58a6ff'],['media','#3fb950'],['docker','#bc8cff'],['commands','#d29922'],['home','#f78166']].forEach(([key,color]) => {
+                    const pct = Math.round((categories[key]/total)*100);
+                    document.getElementById(`bar-${key}`).style.width      = pct+'%';
+                    document.getElementById(`bar-${key}`).style.background = color;
+                    document.getElementById(`val-${key}`).textContent       = categories[key];
+                });
+            } catch(e) {}
+            renderAlerts();
+        }
+
+        async function loadActivity() {
+            try {
+                const res  = await fetch('/activity'); const data = await res.json(); const list = document.getElementById('actividad-lista'); const logs = data.activity || [];
+                if (!logs.length) { list.innerHTML = '<div class="empty-state">No activity yet</div>'; return; }
+                list.innerHTML = logs.slice(0,25).map(log => `<div class="actividad-item ${log.type}"><span class="act-tiempo">${log.time}</span><span class="act-texto">${log.text}</span><span class="act-badge">${log.badge||''}</span></div>`).join('');
+            } catch(e) {}
+        }
+
+        async function loadTasks() {
+            try {
+                const res  = await fetch('/tasks'); const data = await res.json();
+                document.getElementById('t-pendientes').textContent = data.pending||0;
+                document.getElementById('t-en-curso').textContent   = data.in_progress||0;
+                document.getElementById('t-reparados').textContent  = data.fixed||0;
+                document.getElementById('t-fallidos').textContent   = data.failed||0;
+                const countEl = document.getElementById('ia-tareas-count'), subEl = document.getElementById('ia-tareas-sub'), card = document.getElementById('ia-card-tareas');
+                countEl.textContent = data.total||0;
+                if ((data.failed||0) > 0)                                      { countEl.className='value red';    subEl.textContent=`${data.failed} failed`;                                   card.className='ia-stat-card red'; }
+                else if ((data.pending||0) > 0 || (data.in_progress||0) > 0)  { countEl.className='value yellow'; subEl.textContent=`${(data.pending||0)+(data.in_progress||0)} active`;      card.className='ia-stat-card yellow'; }
+                else                                                           { countEl.className='value green';  subEl.textContent='no tasks';                                                 card.className='ia-stat-card green'; }
+                const list  = document.getElementById('tareas-lista'), tasks = data.tasks || [];
+                if (!tasks.length) { list.innerHTML = '<div class="empty-state">No tasks ✓</div>'; return; }
+                list.innerHTML = tasks.map(task => `<div class="tarea-item ${task.status}"><div class="tarea-header"><span class="tarea-desc">${task.description}</span><span class="tarea-estado-badge ${task.status} ${task.status==='in_progress'?'pulsing':''}">${taskStatusLabel(task.status)}</span></div><div class="tarea-meta">${task.type}${task.container_name?' · '+task.container_name:''} · ${task.attempts} attempt(s) · ${task.updated_at}</div>${task.result?`<div class="tarea-resultado">${task.result}</div>`:''}</div>`).join('');
+            } catch(e) {}
+        }
+        function taskStatusLabel(status) { return {pending:'⏳ Pending', in_progress:'🔄 In Progress', fixed:'✅ Fixed', failed:'❌ Failed', ignored:'⏭️ Ignored'}[status] || status; }
+
+        async function loadCommands() {
+            try {
+                const res  = await fetch('/commands'); const data = await res.json(); const list = document.getElementById('cmds-lista');
+                if (!data.commands?.length) { list.innerHTML = '<div class="empty-state">No commands yet</div>'; return; }
+                list.innerHTML = data.commands.slice(0,25).map(command => `<div class="cmd-item"><div class="cmd-text">$ ${command.command}</div><div class="cmd-meta"><span>${command.source||'chat'}</span><span>${command.time||''}</span></div></div>`).join('');
+            } catch(e) {}
+        }
+
+        async function loadHistory() {
+            const res  = await fetch('/history'); const data = await res.json(); const list = document.getElementById('historial-lista');
+            if (!data.history.length) { list.innerHTML = '<div class="empty-state">No history</div>'; return; }
+            list.innerHTML = data.history.map(message => `<div class="historial-item"><div class="rol">${message.role==='user'?'👤 You':'⚡ Jarvis'}</div><div>${message.content}</div></div>`).join('');
+        }
+
+        // ── Logs ──────────────────────────────────────────────────────
+        async function populateLogSelect() {
+            const res  = await fetch('/stats'); const data = await res.json(); const cs = data.containers || [];
+            document.getElementById('log-select').innerHTML = [
+                '<option value="__jarvis__">⚡ Jarvis (journalctl)</option>',
+                ...cs.map(container => `<option value="${container.name}">${container.status==='running'?'✅':'❌'} ${container.name}</option>`)
+            ].join('');
+        }
+        function getSelectedContainer() {
+            const custom = document.getElementById('log-custom').value.trim();
+            return custom || document.getElementById('log-select').value;
+        }
+        async function loadLogs() {
+            const containerName = getSelectedContainer(); if (!containerName) return;
+            const url = containerName === '__jarvis__' ? `/logs/__jarvis__/jarvis` : `/logs/${containerName}`;
+            try {
+                const res  = await fetch(url); const data = await res.json(); const out = document.getElementById('logs-output');
+                out.textContent   = data.logs || data.error || '(no output)';
+                out.scrollTop     = out.scrollHeight;
+                const label = containerName === '__jarvis__' ? 'Jarvis' : containerName;
+                document.getElementById('logs-status').textContent = `${label} · ${new Date().toLocaleTimeString('en-GB')}`;
+            } catch(e) { document.getElementById('logs-status').textContent = 'Load error'; }
+        }
+        function clearLogsPanel() { document.getElementById('logs-output').textContent = ''; document.getElementById('logs-status').textContent = 'Panel cleared'; }
+        function toggleAutoLogs() {
+            clearInterval(logsInterval);
+            if (document.getElementById('auto-refresh').checked) { const ms = parseInt(document.getElementById('logs-interval-sel').value)||1000; logsInterval = setInterval(loadLogs, ms); }
+        }
+        function cambiarIntervaloLogs() {
+            clearInterval(logsInterval);
+            if (document.getElementById('auto-refresh').checked) { const ms = parseInt(document.getElementById('logs-interval-sel').value)||1000; logsInterval = setInterval(loadLogs, ms); document.getElementById('logs-status').textContent = `Auto every ${ms/1000}s`; }
+        }
+
+        // ── Discord console permissions ───────────────────────────────
+        async function loadConsolePermissions() {
+            try {
+                const res  = await fetch('/console/permissions'); const data = await res.json(); const list = document.getElementById('permisos-lista'); const users = data.users || [];
+                if (!users.length) { list.innerHTML = '<div class="empty-state">No additional authorized users</div>'; return; }
+                list.innerHTML = users.map(user => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0d1117;border-radius:6px;border-left:3px solid #58a6ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${user.name||'No name'}</span><span style="color:#8b949e;margin-left:8px;">${user.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">since ${user.added_at||''}</span></div><button onclick="removeConsolePermission(${user.id})" style="background:#3d1f1f;color:#f85149;border:1px solid #f85149;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Remove</button></div>`).join('');
+            } catch(e) { document.getElementById('permisos-lista').innerHTML = '<div class="empty-state">Endpoint unavailable</div>'; }
+        }
+        async function addConsolePermission() {
+            const idStr  = document.getElementById('perm-id-input').value.trim();
+            const name = document.getElementById('perm-nombre-input').value.trim();
+            if (!idStr || isNaN(parseInt(idStr))) { showAlert('Enter a valid numeric Discord User ID', 'danger'); return; }
+            const res  = await fetch('/console/permissions', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:parseInt(idStr), name})});
+            const data = await res.json();
+            if (data.ok) { showAlert(`User ${name||idStr} added ✓`, 'success'); document.getElementById('perm-id-input').value=''; document.getElementById('perm-nombre-input').value=''; loadConsolePermissions(); }
+            else showAlert(data.message||'Add error', 'warning');
+        }
+        async function removeConsolePermission(userId) {
+            const res  = await fetch(`/console/permissions/${userId}`, {method:'DELETE'}); const data = await res.json();
+            if (data.ok) { showAlert('User removed ✓', 'success'); loadConsolePermissions(); }
+            else showAlert(data.message||'Error', 'danger');
+        }
+
+        // ── Modales sistema ───────────────────────────────────────────
+        function confirmSystemAction(action) {
+            pendingAction = action;
+            document.getElementById('modal-titulo').textContent  = action==='apagar' ? '⏻ Shut Down' : '↺ Restart';
+            document.getElementById('modal-texto').textContent   = action==='apagar' ? 'The server will shut down.' : 'The server will restart.';
+            document.getElementById('modal-confirm').textContent = action==='apagar' ? 'Shut Down' : 'Restart';
+            document.getElementById('modal').classList.add('show');
+        }
+        function closeModal() { document.getElementById('modal').classList.remove('show'); pendingAction = null; }
+        function confirmDockerDown() {
+            pendingAction = 'docker-down';
+            document.getElementById('modal-titulo').textContent  = '⏹ Stop containers';
+            document.getElementById('modal-texto').textContent   = 'docker compose down will be executed.';
+            document.getElementById('modal-confirm').textContent = 'Stop everything';
+            document.getElementById('modal').classList.add('show');
+        }
+        document.getElementById('modal-confirm').addEventListener('click', async () => {
+            if (!pendingAction) return; const action = pendingAction; closeModal();
+            if (action === 'apagar')       { const d=(await(await fetch('/system/apagar',{method:'POST'})).json());    showAlert(d.message,'warning'); setManualStatus('shutting_down'); }
+            else if (action === 'reiniciar'){ const d=(await(await fetch('/system/reiniciar',{method:'POST'})).json()); showAlert(d.message,'warning'); setManualStatus('restarting'); }
+            else if (action === 'docker-down') { const d=(await(await fetch('/docker/down',{method:'POST'})).json()); showAlert(d.message,d.ok?'warning':'danger'); }
+        });
+
+        function setManualStatus(type) {
+            const dot = document.getElementById('estado-dot');
+            const txt = document.getElementById('estado-txt');
+            if (type === 'shutting_down')   { dot.className='critical'; txt.className='critical'; txt.textContent='⏻ Shutting down...'; }
+            if (type === 'restarting'){ dot.className='warn';     txt.className='warn';     txt.textContent='↺ Restarting...'; }
+        }
+
+        // ── CONSOLA WEB ───────────────────────────────────────────────
+        let consolaCwd      = '/srv/nas';
+        let consolaHistorial= [];
+        let consolaHistIdx  = -1;
+        let consolaPendiente= null; // dangerous command waiting for confirmation
+
+        const COMANDOS_PELIGROSOS = ['rm ','rmdir','dd ','mkfs','fdisk','format','shutdown','reboot','poweroff','halt','chmod 777','chown','> /dev/','truncate','docker system prune','docker volume prune'];
+
+        const consolaOut   = document.getElementById('consola-output');
+        const consolaInput = document.getElementById('consola-input');
+
+        function consolaScroll() { consolaOut.scrollTop = consolaOut.scrollHeight; }
+
+        function consolaEscribir(texto, clase='output-line') {
+            const lineas = String(texto).split('\n');
+            lineas.forEach(l => {
+                const div = document.createElement('div');
+                div.className = 'consola-line ' + clase;
+                div.textContent = l;
+                consolaOut.appendChild(div);
+            });
+            consolaScroll();
+        }
+
+        function consolaPrompt(cmd) {
+            const div = document.createElement('div');
+            div.className = 'consola-line prompt-line';
+            div.textContent = `fabio@jarvis:${consolaCwd}$ ${cmd}`;
+            consolaOut.appendChild(div);
+            consolaScroll();
+        }
+
+        function actualizarPromptLabel() {
+            document.getElementById('consola-prompt-label').textContent = `fabio@jarvis:${consolaCwd}$`;
+            document.getElementById('consola-cwd-label').textContent    = consolaCwd;
+        }
+
+        function consolaLimpiar() {
+            consolaOut.innerHTML = '';
+            consolaEscribir('Terminal cleared.', 'info-line');
+        }
+
+        async function consolaEjecutar(cmd) {
+            if (!cmd.trim()) return;
+            consolaHistorial.unshift(cmd);
+            if (consolaHistorial.length > 100) consolaHistorial.pop();
+            consolaHistIdx = -1;
+
+            consolaPrompt(cmd);
+
+            try {
+                const res  = await fetch('/cmd', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({cmd, cwd: consolaCwd})
+                });
+                const data = await res.json();
+                if (data.cwd && data.cwd !== consolaCwd) {
+                    consolaCwd = data.cwd;
+                    actualizarPromptLabel();
+                }
+                if (data.output) {
+                    const eErr = data.output.toLowerCase().includes('error') || data.output.toLowerCase().includes('no such') || data.output.toLowerCase().includes('permission denied') || data.output.toLowerCase().includes('not found');
+                    consolaEscribir(data.output, eErr ? 'error-line' : 'output-line');
+                }
+            } catch(e) {
+                consolaEscribir('Connection error with Jarvis', 'error-line');
+            }
+        }
+
+        function consolaShortcut(cmd) {
+            consolaInput.value = cmd;
+            consolaInput.focus();
+            // run directly
+            consolaEnviar();
+        }
+
+        function esPeligroso(cmd) {
+            return COMANDOS_PELIGROSOS.some(p => cmd.toLowerCase().includes(p.toLowerCase()));
+        }
+
+        function consolaEnviar() {
+            const cmd = consolaInput.value.trim();
+            consolaInput.value = '';
+            if (!cmd) return;
+            if (esPeligroso(cmd)) {
+                consolaPendiente = cmd;
+                document.getElementById('consola-danger-cmd').textContent = cmd;
+                document.getElementById('consola-danger-modal').classList.add('show');
+                return;
+            }
+            consolaEjecutar(cmd);
+        }
+
+        function cerrarConsolaDanger() {
+            document.getElementById('consola-danger-modal').classList.remove('show');
+            consolaEscribir('Command canceled.', 'info-line');
+            consolaPendiente = null;
+        }
+
+        function ejecutarConsolaDangerConfirmado() {
+            document.getElementById('consola-danger-modal').classList.remove('show');
+            if (consolaPendiente) { consolaEjecutar(consolaPendiente); consolaPendiente = null; }
+        }
+
+        consolaInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { consolaEnviar(); return; }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (consolaHistIdx < consolaHistorial.length - 1) {
+                    consolaHistIdx++;
+                    consolaInput.value = consolaHistorial[consolaHistIdx];
+                }
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (consolaHistIdx > 0) { consolaHistIdx--; consolaInput.value = consolaHistorial[consolaHistIdx]; }
+                else { consolaHistIdx = -1; consolaInput.value = ''; }
+            }
+            if (e.key === 'l' && e.ctrlKey) { e.preventDefault(); consolaLimpiar(); }
+        });
+
+        // Welcome message for the console
+        (function() {
+            consolaEscribir('Jarvis Web Console — connected', 'info-line');
+            consolaEscribir(`cwd: ${consolaCwd}  |  Ctrl+L to clear  |  ↑↓ for history`, 'info-line');
+            consolaEscribir('', 'info-line');
+        })();
+
+        // ── Init ──────────────────────────────────────────────────────
+        setInterval(refreshDashboard, 3000);
+        setInterval(refreshTokens,    8000);
+        setInterval(refreshStatus,    15000);
+        setInterval(() => {
+            if (document.getElementById('panel-ai').style.display === 'block') {
+                loadTasks(); loadActivity(); loadMonitor(); updateAiPanel();
+            }
+        }, 10000);
+        refreshDashboard();
+        refreshTokens();
+        refreshStatus();
+    </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# SECRETS:
+.env
+
+# Runtime Data:
+data/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv
+*.egg-info/
+
+# Editor: 
+.vscode/
+.idea/
+
+# Others:
+asistente.py
