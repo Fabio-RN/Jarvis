@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>Jarvis</title>
@@ -13,7 +13,7 @@
         .tab.active { color:#58a6ff; border-bottom:2px solid #58a6ff; }
         #content { flex:1; overflow:hidden; display:flex; flex-direction:column; }
         #panel-chat { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-        #panel-dashboard,#panel-history,#panel-logs,#panel-ai,#panel-console { flex:1; overflow-y:auto; padding:20px; display:none; }
+        #panel-dashboard,#panel-historial,#panel-logs,#panel-ia,#panel-consola { flex:1; overflow-y:auto; padding:20px; display:none; }
         #chat { flex:1; overflow-y:auto; padding:20px; padding-bottom:60px; display:flex; flex-direction:column; gap:12px; }
         .mensaje { max-width:80%; padding:10px 15px; border-radius:8px; line-height:1.5; white-space:pre-wrap; font-size:14px; }
         .usuario { background:#1f6feb; align-self:flex-end; }
@@ -130,11 +130,11 @@
         .scroll-box { max-height:320px; overflow-y:auto; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         .pulsing { animation:pulse 1.5s infinite; }
-        .monitor-panel { background:#0d1117; border-radius:8px; padding:16px; margin-bottom:16px; }
-        .monitor-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
-        .monitor-row label { color:#8b949e; font-size:12px; min-width:100px; }
-        .monitor-input { background:#161b22; border:1px solid #30363d; color:#e6edf3; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px; width:80px; }
-        .monitor-input:focus { outline:none; border-color:#58a6ff; }
+        .vigilante-panel { background:#0d1117; border-radius:8px; padding:16px; margin-bottom:16px; }
+        .vigilante-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+        .vigilante-row label { color:#8b949e; font-size:12px; min-width:100px; }
+        .vigilante-input { background:#161b22; border:1px solid #30363d; color:#e6edf3; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px; width:80px; }
+        .vigilante-input:focus { outline:none; border-color:#58a6ff; }
         .toggle-btn { padding:6px 16px; font-size:12px; border-radius:4px; cursor:pointer; border:none; font-family:monospace; transition:background 0.2s; }
         .toggle-btn.on  { background:#1a4a1a; color:#3fb950; border:1px solid #3fb950; }
         .toggle-btn.off { background:#3d1f1f; color:#f85149; border:1px solid #f85149; }
@@ -148,7 +148,7 @@
         .tokens-hist-hoy { background:#1a2a4a; border-radius:4px; padding:2px 6px; font-size:10px; color:#58a6ff; margin-left:4px; }
         .tokens-hist-modelo { color:#8b949e; font-size:10px; margin-top:2px; }
 
-        /* ── Status indicator ── */
+        /* ── Estado indicador ── */
         #estado-wrapper { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; position:relative; }
         #estado-dot { width:8px; height:8px; border-radius:50%; background:#3fb950; box-shadow:0 0 6px #3fb950; transition:background 0.4s, box-shadow 0.4s; }
         #estado-dot.warn     { background:#d29922; box-shadow:0 0 6px #d29922; }
@@ -191,8 +191,8 @@
         .tt-btn.green { border-color:#3fb950; color:#3fb950; }
         .tt-btn.green:hover { background:#1a4a1a; }
 
-        /* ── Console ── */
-        #panel-console { background:#0d1117; }
+        /* ── Consola ── */
+        #panel-consola { background:#0d1117; }
         .consola-wrap { display:flex; flex-direction:column; height:100%; gap:0; }
         .consola-toolbar {
             display:flex; align-items:center; gap:8px; padding:10px 16px;
@@ -254,18 +254,18 @@
 </head>
 <body>
     <div id="header">
-        <span>⚡ Jarvis — Server Assistant</span>
+        <span>⚡ Jarvis — Asistente de Servidor</span>
         <div style="display:flex;gap:8px;align-items:center;">
-            <button class="btn-warn" onclick="confirmSystemAction('reiniciar')" style="padding:6px 12px;font-size:12px;">↺ Restart</button>
-            <button class="btn-danger" onclick="confirmSystemAction('apagar')" style="padding:6px 12px;font-size:12px;">⏻ Shut Down</button>
+            <button class="btn-warn" onclick="confirmar('reiniciar')" style="padding:6px 12px;font-size:12px;">↺ Reiniciar</button>
+            <button class="btn-danger" onclick="confirmar('apagar')" style="padding:6px 12px;font-size:12px;">⏻ Apagar</button>
             <div id="estado-wrapper" onclick="toggleTooltip()">
                 <div id="estado-dot"></div>
                 <span id="estado-txt" class="ok">Online</span>
                 <div id="estado-tooltip">
-                    <div class="tt-title">System status</div>
-                    <div id="tt-content"><div style="color:#8b949e;font-size:12px;">Loading...</div></div>
+                    <div class="tt-title">Estado del sistema</div>
+                    <div id="tt-content"><div style="color:#8b949e;font-size:12px;">Cargando...</div></div>
                     <div id="tt-footer" style="display:none;">
-                        <button class="tt-btn" onclick="event.stopPropagation();dismissAllHealth()">✓ Mark all as read</button>
+                        <button class="tt-btn" onclick="event.stopPropagation();descartarTodosHealth()">✓ Marcar todo leído</button>
                     </div>
                 </div>
             </div>
@@ -274,59 +274,59 @@
     <div id="tabs">
         <div class="tab active" onclick="switchTab('chat',this)">💬 Chat</div>
         <div class="tab" onclick="switchTab('dashboard',this)">📊 Dashboard</div>
-        <div class="tab" onclick="switchTab('history',this)">📜 History</div>
+        <div class="tab" onclick="switchTab('historial',this)">📜 Historial</div>
         <div class="tab" onclick="switchTab('logs',this)">📋 Logs</div>
-        <div class="tab" onclick="switchTab('ai',this)">🤖 AI / Activity</div>
-        <div class="tab" onclick="switchTab('console',this)">💻 Console</div>
+        <div class="tab" onclick="switchTab('ia',this)">🤖 IA / Actividad</div>
+        <div class="tab" onclick="switchTab('consola',this)">💻 Consola</div>
     </div>
     <div id="content">
         <!-- CHAT -->
         <div id="panel-chat">
             <div id="chat"></div>
             <div id="input-area">
-                <input id="input" type="text" placeholder="Ask something..."/>
-                <button onclick="sendMessage()">Send</button>
+                <input id="input" type="text" placeholder="Preguntá algo..."/>
+                <button onclick="enviar()">Enviar</button>
             </div>
         </div>
 
         <!-- DASHBOARD -->
         <div id="panel-dashboard">
             <div class="grid">
-                <div class="card"><h3>🖥️ CPU</h3><div class="stat ok" id="cpu-stat">--%</div><div class="stat-label">Current usage</div><div class="chart-container"><canvas id="cpu-chart"></canvas></div></div>
+                <div class="card"><h3>🖥️ CPU</h3><div class="stat ok" id="cpu-stat">--%</div><div class="stat-label">Uso actual</div><div class="chart-container"><canvas id="cpu-chart"></canvas></div></div>
                 <div class="card"><h3>🧠 RAM</h3><div class="stat ok" id="ram-stat">--%</div><div class="stat-label" id="ram-label">-- / -- GB</div><div class="chart-container"><canvas id="ram-chart"></canvas></div></div>
-                <div class="card"><h3>💾 Disk</h3><div class="stat ok" id="disco-stat">--%</div><div class="stat-label" id="disco-label">-- GB free</div></div>
-                <div class="card"><h3>🌡️ Temperature</h3><div class="stat ok" id="temp-stat">--°C</div><div class="stat-label">CPU</div></div>
+                <div class="card"><h3>💾 Disco</h3><div class="stat ok" id="disco-stat">--%</div><div class="stat-label" id="disco-label">-- GB libres</div></div>
+                <div class="card"><h3>🌡️ Temperatura</h3><div class="stat ok" id="temp-stat">--°C</div><div class="stat-label">CPU</div></div>
                 <div class="card" style="grid-column:1/-1;"><h3>🌐 Red</h3><div class="net-stats"><span class="net-down">▼ <span id="recv-stat">--</span></span><span class="net-up">▲ <span id="sent-stat">--</span></span></div><div class="chart-container" style="height:140px;"><canvas id="net-chart"></canvas></div></div>
             </div>
             <div class="card">
-                <h3>🐳 Docker Containers</h3>
+                <h3>🐳 Contenedores Docker</h3>
                 <div style="display:flex;gap:8px;margin-bottom:12px;">
-                    <button onclick="dockerUp()">▶ Start all</button>
-                    <button onclick="confirmDockerDown()" class="btn-danger">⏹ Stop all</button>
+                    <button onclick="dockerUp()">▶ Iniciar todos</button>
+                    <button onclick="confirmarDockerDown()" class="btn-danger">⏹ Detener todos</button>
                 </div>
-                <div class="containers-list" id="containers-list"><div style="color:#8b949e;padding:10px;text-align:center;">Loading...</div></div>
+                <div class="containers-list" id="containers-list"><div style="color:#8b949e;padding:10px;text-align:center;">Cargando...</div></div>
             </div>
         </div>
 
         <!-- HISTORIAL -->
-        <div id="panel-history">
-            <div class="card"><h3>📜 History</h3><div id="historial-lista" style="margin-top:15px;"></div></div>
+        <div id="panel-historial">
+            <div class="card"><h3>📜 Historial</h3><div id="historial-lista" style="margin-top:15px;"></div></div>
         </div>
 
         <!-- LOGS -->
         <div id="panel-logs">
             <div class="card">
-                <h3>📋 Real-time logs</h3>
+                <h3>📋 Logs en tiempo real</h3>
                 <div style="margin:12px 0 8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
                     <select id="log-select" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:8px;border-radius:6px;font-family:monospace;min-width:160px;"></select>
-                    <input id="log-custom" type="text" placeholder="Custom service..." style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:8px;border-radius:6px;font-family:monospace;width:160px;" title="Custom container or service name">
-                    <button onclick="loadLogs()">↺ Refresh</button>
-                    <button onclick="clearLogsPanel()" class="btn-sm">🗑 Clear</button>
+                    <input id="log-custom" type="text" placeholder="Servicio custom..." style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:8px;border-radius:6px;font-family:monospace;width:160px;" title="Nombre de contenedor o servicio personalizado">
+                    <button onclick="cargarLogs()">↺ Actualizar</button>
+                    <button onclick="limpiarLogsPanel()" class="btn-sm">🗑 Limpiar</button>
                     <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#8b949e;cursor:pointer;">
                         <input type="checkbox" id="auto-refresh" checked onchange="toggleAutoLogs()"> Auto-refresh
                     </label>
                     <div style="display:flex;align-items:center;gap:5px;">
-                        <span style="font-size:12px;color:#8b949e;">Every</span>
+                        <span style="font-size:12px;color:#8b949e;">Cada</span>
                         <select id="logs-interval-sel" onchange="cambiarIntervaloLogs()" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:4px 6px;border-radius:4px;font-family:monospace;font-size:12px;">
                             <option value="1000" selected>1s</option>
                             <option value="3000">3s</option>
@@ -342,20 +342,20 @@
         </div>
 
         <!-- IA / ACTIVIDAD -->
-        <div id="panel-ai">
+        <div id="panel-ia">
             <div class="ia-grid">
                 <div class="ia-stat-card" id="ia-card-tokens" style="grid-column:span 2;">
-                    <div class="label">Tokens used today</div>
+                    <div class="label">Tokens usados hoy</div>
                     <div style="display:flex;gap:20px;align-items:flex-end;">
                         <div>
                             <div class="value" id="ia-tokens-used">0</div>
-                            <div class="sub" id="ia-tokens-sub">today total</div>
+                            <div class="sub" id="ia-tokens-sub">total hoy</div>
                         </div>
                         <div style="flex:1;">
                             <div style="display:flex;justify-content:space-between;font-size:11px;color:#8b949e;margin-bottom:4px;">
                                 <span>🌐 Web: <span id="ia-tokens-web" style="color:#58a6ff;">0</span></span>
                                 <span>💬 Discord: <span id="ia-tokens-discord" style="color:#bc8cff;">0</span></span>
-                                <span>Remaining: <span id="ia-tokens-rest" style="color:#3fb950;">200,000</span></span>
+                                <span>Restantes: <span id="ia-tokens-rest" style="color:#3fb950;">200,000</span></span>
                             </div>
                             <div class="token-bar-big">
                                 <div id="ia-bar-web"     style="height:8px;border-radius:6px 0 0 6px;background:#58a6ff;float:left;transition:width 0.5s;"></div>
@@ -363,7 +363,7 @@
                             </div>
                             <div style="clear:both;"></div>
                             <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#8b949e;">
-                                <span id="ia-tokens-fecha">today</span>
+                                <span id="ia-tokens-fecha">hoy</span>
                                 <span id="ia-ultima-sync"></span>
                                 <button onclick="resetTokens()" style="background:none;border:1px solid #30363d;color:#8b949e;padding:2px 8px;font-size:10px;cursor:pointer;border-radius:3px;">↺ Reset</button>
                             </div>
@@ -371,119 +371,124 @@
                     </div>
                 </div>
                 <div class="ia-stat-card">
-                    <div class="label">Active model</div>
-                    <div class="value" id="ia-modelo-nombre" style="font-size:11px;padding-top:6px;word-break:break-all;">loading...</div>
+                    <div class="label">Modelo activo</div>
+                    <div class="value" id="ia-modelo-nombre" style="font-size:11px;padding-top:6px;word-break:break-all;">cargando...</div>
                     <div class="sub"><span class="status-dot green"></span>OpenRouter — online</div>
                 </div>
                 <div class="ia-stat-card" id="ia-card-alertas">
-                    <div class="label">Active alerts</div>
+                    <div class="label">Alertas activas</div>
                     <div class="value green" id="ia-alertas-count">0</div>
-                    <div class="sub" id="ia-alertas-sub">system stable</div>
+                    <div class="sub" id="ia-alertas-sub">sistema estable</div>
                 </div>
                 <div class="ia-stat-card" id="ia-card-tareas">
-                    <div class="label">Repair tasks</div>
+                    <div class="label">Tareas reparación</div>
                     <div class="value green" id="ia-tareas-count">0</div>
-                    <div class="sub" id="ia-tareas-sub">no tasks</div>
+                    <div class="sub" id="ia-tareas-sub">sin tareas</div>
                 </div>
             </div>
             <div class="card" style="margin-bottom:20px;">
-                <div class="seccion-titulo"><span>📈 Token history (last 30 days)</span><button onclick="loadTokenHistory()">↺</button></div>
-                <div id="tokens-historial-lista"><div class="empty-state">Loading...</div></div>
+                <div class="seccion-titulo"><span>📈 Historial de tokens (últimos 30 días)</span><button onclick="cargarHistorialTokens()">↺</button></div>
+                <div id="tokens-historial-lista"><div class="empty-state">Cargando...</div></div>
             </div>
             <div class="card" style="margin-bottom:20px;">
-                    <div class="seccion-titulo"><span>🛡️ Monitor Control</span><button onclick="loadMonitor()">↺ Refresh</button></div>
-                <div class="monitor-panel">
-                    <div class="monitor-row">
-                        <label>Status:</label>
-                        <button id="monitor-toggle-btn" class="toggle-btn on" onclick="toggleMonitor()">● Active</button>
-                        <span id="monitor-status-txt" style="font-size:12px;color:#8b949e;"></span>
+                <div class="seccion-titulo"><span>🛡️ Control del Vigilante</span><button onclick="cargarVigilante()">↺ Actualizar</button></div>
+                <div class="vigilante-panel">
+                    <div class="vigilante-row">
+                        <label>Estado:</label>
+                        <button id="vigilante-toggle-btn" class="toggle-btn on" onclick="toggleVigilante()">● Activo</button>
+                        <span id="vigilante-status-txt" style="font-size:12px;color:#8b949e;"></span>
                     </div>
-                    <div class="monitor-row">
-                        <label>Interval:</label>
-                        <input type="number" id="monitor-interval" class="monitor-input" value="300" min="60" max="3600" step="60">
-                        <span style="font-size:12px;color:#8b949e;">seconds</span>
-                        <span id="monitor-interval-min" style="font-size:11px;color:#8b949e;"></span>
+                    <div class="vigilante-row">
+                        <label>Intervalo:</label>
+                        <input type="number" id="v-intervalo" class="vigilante-input" value="300" min="60" max="3600" step="60">
+                        <span style="font-size:12px;color:#8b949e;">segundos</span>
+                        <span id="v-intervalo-min" style="font-size:11px;color:#8b949e;"></span>
                     </div>
-                    <div class="monitor-row">
-                        <label>CPU threshold:</label>
-                        <input type="number" id="monitor-cpu" class="monitor-input" value="90" min="50" max="100">
+                    <div class="vigilante-row">
+                        <label>Umbral CPU:</label>
+                        <input type="number" id="v-cpu" class="vigilante-input" value="90" min="50" max="100">
                         <span style="font-size:12px;color:#8b949e;">%</span>
                         <label style="margin-left:20px;">RAM:</label>
-                        <input type="number" id="monitor-ram" class="monitor-input" value="85" min="50" max="100">
+                        <input type="number" id="v-ram" class="vigilante-input" value="85" min="50" max="100">
                         <span style="font-size:12px;color:#8b949e;">%</span>
                     </div>
-                    <div class="monitor-row">
-                        <label>Disk threshold:</label>
-                        <input type="number" id="monitor-disk" class="monitor-input" value="85" min="50" max="100">
+                    <div class="vigilante-row">
+                        <label>Umbral Disco:</label>
+                        <input type="number" id="v-disco" class="vigilante-input" value="85" min="50" max="100">
                         <span style="font-size:12px;color:#8b949e;">%</span>
                         <label style="margin-left:20px;">Temp:</label>
-                        <input type="number" id="monitor-temp" class="monitor-input" value="80" min="50" max="100">
+                        <input type="number" id="v-temp" class="vigilante-input" value="80" min="50" max="100">
                         <span style="font-size:12px;color:#8b949e;">°C</span>
                     </div>
-                    <div class="monitor-row">
-                        <label>Summary hour:</label>
-                        <input type="number" id="monitor-hour" class="monitor-input" value="8" min="0" max="23">
-                        <span style="font-size:12px;color:#8b949e;">h (24h)</span>
+                    <div class="vigilante-row">
+                        <label>Resumen hora:</label>
+                        <input type="number" id="v-hora" class="vigilante-input" value="8" min="0" max="23">
+                        <span style="font-size:12px;color:#8b949e;">hs (24h)</span>
                     </div>
                     <div style="display:flex;gap:10px;margin-top:8px;">
-                        <button onclick="saveMonitor()" class="btn-green">💾 Save config</button>
-                        <button onclick="resetMonitor()" class="btn-sm">↺ Defaults</button>
+                        <button onclick="guardarVigilante()" class="btn-green">💾 Guardar config</button>
+                        <button onclick="resetVigilante()" class="btn-sm">↺ Defaults</button>
                     </div>
                 </div>
             </div>
             <div class="card" style="margin-bottom:20px;">
-                <div class="seccion-titulo"><span>🔐 Discord console permissions</span><button onclick="loadConsolePermissions()">↺ Refresh</button></div>
+                <div class="seccion-titulo"><span>🔐 Permisos consola Discord</span><button onclick="cargarPermisosConsola()">↺ Actualizar</button></div>
                 <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
                     <input id="perm-id-input" type="text" placeholder="Discord User ID..." style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:180px;">
-                    <input id="perm-nombre-input" type="text" placeholder="Name (optional)" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:160px;">
-                    <button onclick="addConsolePermission()" class="btn-green" style="font-size:12px;padding:7px 14px;">+ Add</button>
+                    <input id="perm-nombre-input" type="text" placeholder="Nombre (opcional)" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:160px;">
+                    <button onclick="agregarPermisoConsola()" class="btn-green" style="font-size:12px;padding:7px 14px;">+ Agregar</button>
                 </div>
-                <div style="font-size:11px;color:#8b949e;margin-bottom:10px;">The owner (DISCORD_DM_ID) always has full access and does not appear in this list.</div>
-                <div id="permisos-lista" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"><div class="empty-state">Loading...</div></div>
+                <div style="font-size:11px;color:#8b949e;margin-bottom:10px;">El owner (DISCORD_DM_ID) siempre tiene acceso completo y no aparece en esta lista.</div>
+                <div id="permisos-lista" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"><div class="empty-state">Cargando...</div></div>
             </div>
             <div class="grid" style="margin-bottom:20px;">
                 <div class="card">
-                    <div class="seccion-titulo"><span>📊 Usage by Category</span></div>
-                    <div class="progreso-row"><span class="progreso-label">System</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-sistema" style="width:0%;background:#58a6ff;"></div></div><span class="progreso-valor" id="val-sistema">0</span></div>
+                    <div class="seccion-titulo"><span>📊 Uso por categoría</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Sistema</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-sistema" style="width:0%;background:#58a6ff;"></div></div><span class="progreso-valor" id="val-sistema">0</span></div>
                     <div class="progreso-row"><span class="progreso-label">Media</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-media" style="width:0%;background:#3fb950;"></div></div><span class="progreso-valor" id="val-media">0</span></div>
                     <div class="progreso-row"><span class="progreso-label">Docker</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-docker" style="width:0%;background:#bc8cff;"></div></div><span class="progreso-valor" id="val-docker">0</span></div>
-                    <div class="progreso-row"><span class="progreso-label">Commands</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-cmd" style="width:0%;background:#d29922;"></div></div><span class="progreso-valor" id="val-cmd">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Comandos</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-cmd" style="width:0%;background:#d29922;"></div></div><span class="progreso-valor" id="val-cmd">0</span></div>
                     <div class="progreso-row"><span class="progreso-label">Home Asst.</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-ha" style="width:0%;background:#f78166;"></div></div><span class="progreso-valor" id="val-ha">0</span></div>
                 </div>
                 <div class="card">
-                    <div class="seccion-titulo"><span>🚨 Alerts</span><button onclick="clearAlerts()">Clear</button></div>
-                    <div class="alertas-lista" id="alertas-lista"><div class="empty-state">No active alerts ✓</div></div>
+                    <div class="seccion-titulo"><span>🚨 Alertas</span><button onclick="limpiarAlertas()">Limpiar</button></div>
+                    <div class="alertas-lista" id="alertas-lista"><div class="empty-state">Sin alertas activas ✓</div></div>
                 </div>
             </div>
             <div class="card" style="margin-bottom:20px;">
-                <div class="seccion-titulo"><span>🔧 Repair tasks</span><button onclick="loadTasks()">↺</button></div>
+                <div class="seccion-titulo">
+                    <span>🔧 Tareas de reparación</span>
+                    <button onclick="ignorarFallidas()">Ignorar fallidas</button>
+                    <button onclick="limpiarResueltas()">Limpiar resueltas</button>
+                    <button onclick="cargarTareas()">↺</button>
+                </div>
                 <div class="tareas-resumen">
-                    <div class="tarea-stat pendiente"><div class="ts-num" id="t-pendientes">0</div><div class="ts-label">Pending</div></div>
-                    <div class="tarea-stat en-curso"><div class="ts-num" id="t-en-curso">0</div><div class="ts-label">In Progress</div></div>
-                    <div class="tarea-stat reparado"><div class="ts-num" id="t-reparados">0</div><div class="ts-label">Fixed</div></div>
-                    <div class="tarea-stat fallido"><div class="ts-num" id="t-fallidos">0</div><div class="ts-label">Failed</div></div>
+                    <div class="tarea-stat pendiente"><div class="ts-num" id="t-pendientes">0</div><div class="ts-label">Pendientes</div></div>
+                    <div class="tarea-stat en-curso"><div class="ts-num" id="t-en-curso">0</div><div class="ts-label">En curso</div></div>
+                    <div class="tarea-stat reparado"><div class="ts-num" id="t-reparados">0</div><div class="ts-label">Reparados</div></div>
+                    <div class="tarea-stat fallido"><div class="ts-num" id="t-fallidos">0</div><div class="ts-label">Fallidos</div></div>
                 </div>
-                <div class="scroll-box" id="tareas-lista"><div class="empty-state">No tasks ✓</div></div>
+                <div class="scroll-box" id="tareas-lista"><div class="empty-state">Sin tareas ✓</div></div>
             </div>
             <div class="card" style="margin-bottom:20px;">
-                <div class="seccion-titulo"><span>⚡ Recent activity</span><button onclick="loadActivity()">↺</button></div>
-                <div class="actividad-lista" id="actividad-lista"><div class="empty-state">No activity yet</div></div>
+                <div class="seccion-titulo"><span>⚡ Actividad reciente</span><button onclick="cargarActividad()">↺</button></div>
+                <div class="actividad-lista" id="actividad-lista"><div class="empty-state">Sin actividad aún</div></div>
             </div>
             <div class="card">
-                <div class="seccion-titulo"><span>💻 Command history</span><button onclick="loadCommands()">↺</button></div>
-                <div class="cmds-lista" id="cmds-lista"><div class="empty-state">No commands yet</div></div>
+                <div class="seccion-titulo"><span>💻 Historial de comandos</span><button onclick="cargarComandos()">↺</button></div>
+                <div class="cmds-lista" id="cmds-lista"><div class="empty-state">Sin comandos aún</div></div>
             </div>
         </div>
 
         <!-- CONSOLA -->
-        <div id="panel-console">
+        <div id="panel-consola">
             <div class="consola-wrap" style="height:calc(100vh - 130px);">
                 <div class="consola-toolbar">
                     <span style="color:#58a6ff;font-weight:bold;">fabio@jarvis</span>
                     <span style="color:#30363d;">|</span>
                     <span id="consola-cwd-label" style="color:#bc8cff;">/srv/nas</span>
                     <span style="color:#30363d;margin-left:4px;">|</span>
-                    <span>Shortcuts:</span>
+                    <span>Atajos:</span>
                     <button class="shortcut-btn" onclick="consolaShortcut('ps aux --sort=-%cpu | head -15')">ps</button>
                     <button class="shortcut-btn" onclick="consolaShortcut('df -h')">df</button>
                     <button class="shortcut-btn" onclick="consolaShortcut('free -h')">mem</button>
@@ -492,48 +497,48 @@
                     <button class="shortcut-btn" onclick="consolaShortcut('ip -brief addr')">net</button>
                     <button class="shortcut-btn" onclick="consolaShortcut('uptime')">uptime</button>
                     <button class="shortcut-btn" onclick="consolaShortcut('docker ps -a --format \"table {{.Names}}\t{{.Status}}\t{{.Ports}}\"')">docker ps</button>
-                    <button class="shortcut-btn btn-danger" onclick="consolaLimpiar()" style="margin-left:auto;">🗑 Clear</button>
+                    <button class="shortcut-btn btn-danger" onclick="consolaLimpiar()" style="margin-left:auto;">🗑 Limpiar</button>
                 </div>
                 <div id="consola-output"></div>
                 <div id="consola-input-row">
                     <span id="consola-prompt-label">fabio@jarvis:/srv/nas$</span>
-                    <input id="consola-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="command..."/>
+                    <input id="consola-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="comando..."/>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Floating alerts -->
+    <!-- Alertas flotantes -->
     <div id="alertas"></div>
 
-    <!-- System confirmation modal -->
+    <!-- Modal confirmación sistema -->
     <div id="modal" class="modal">
         <div class="modal-box">
-            <h3 id="modal-titulo">Are you sure?</h3>
+            <h3 id="modal-titulo">¿Estás seguro?</h3>
             <p id="modal-texto"></p>
             <div class="modal-btns">
-                <button onclick="closeModal()" style="background:#21262d;">Cancel</button>
-                <button id="modal-confirm" class="btn-danger">Confirm</button>
+                <button onclick="cerrarModal()" style="background:#21262d;">Cancelar</button>
+                <button id="modal-confirm" class="btn-danger">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <!-- Dangerous console command modal -->
+    <!-- Modal comando peligroso consola -->
     <div id="consola-danger-modal" class="consola-danger-modal">
         <div class="consola-danger-box">
-            <h3>⚠️ Dangerous command</h3>
-            <p>This can cause data loss or interruptions.</p>
+            <h3>⚠️ Comando peligroso</h3>
+            <p>Esto puede causar pérdida de datos o interrupciones.</p>
             <code id="consola-danger-cmd"></code>
             <div class="modal-btns">
-                <button onclick="cerrarConsolaDanger()" style="background:#21262d;">Cancel</button>
-                <button class="btn-danger" onclick="ejecutarConsolaDangerConfirmado()">Run anyway</button>
+                <button onclick="cerrarConsolaDanger()" style="background:#21262d;">Cancelar</button>
+                <button class="btn-danger" onclick="ejecutarConsolaDangerConfirmado()">Ejecutar igual</button>
             </div>
         </div>
     </div>
 
     <!-- Status bar -->
     <div style="position:fixed;bottom:0;left:0;right:0;background:#010409;border-top:1px solid #30363d;padding:6px 20px;display:flex;gap:14px;align-items:center;font-size:11px;color:#8b949e;z-index:100;">
-        <span>🤖 <span id="bar-modelo">loading...</span></span>
+        <span>🤖 <span id="bar-modelo">cargando...</span></span>
         <span>|</span>
         <span>🌐 Web: <span id="bar-web-tokens" style="color:#58a6ff;">0</span></span>
         <span>💬 Discord: <span id="bar-discord-tokens" style="color:#bc8cff;">0</span></span>
@@ -543,195 +548,209 @@
             <div id="bar-web-fill"     style="background:#58a6ff;height:6px;float:left;transition:width 0.5s;"></div>
             <div id="bar-discord-fill" style="background:#bc8cff;height:6px;float:left;transition:width 0.5s;"></div>
         </div>
-        <span id="bar-monitor-status" style="margin-left:auto;color:#3fb950;">🛡️ Monitor active</span>
+        <span id="bar-vigilante-status" style="margin-left:auto;color:#3fb950;">🛡️ Vigilante activo</span>
     </div>
 
     <script>
         const chat  = document.getElementById('chat');
         const input = document.getElementById('input');
         let logsInterval    = null;
-        let pendingAction = null;
-        let activeAlerts = [];
-        let tooltipOpen = false;
+        let accionPendiente = null;
+        let alertasActivas  = [];
+        let tooltipAbierto  = false;
 
         // ── Tabs ──────────────────────────────────────────────────────
         function switchTab(name, el) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
-            ['chat','dashboard','history','logs','ai','console'].forEach(p => {
+            ['chat','dashboard','historial','logs','ia','consola'].forEach(p => {
                 const panel = document.getElementById('panel-'+p);
                 if (panel) panel.style.display = (p === name) ? (p === 'chat' ? 'flex' : 'block') : 'none';
             });
             clearInterval(logsInterval);
-            if (name === 'history') loadHistory();
-            if (name === 'ai') {
-                loadActivity(); loadCommands(); loadTasks();
-                loadMonitor(); refreshTokens(); updateAiPanel();
-                loadTokenHistory(); loadConsolePermissions();
+            if (name === 'historial') cargarHistorial();
+            if (name === 'ia') {
+                cargarActividad(); cargarComandos(); cargarTareas();
+                cargarVigilante(); actualizarTokens(); actualizarPanelIA();
+                cargarHistorialTokens(); cargarPermisosConsola();
             }
             if (name === 'logs') {
-                populateLogSelect(); loadLogs();
+                poblarSelectLogs(); cargarLogs();
                 if (document.getElementById('auto-refresh').checked) {
                     const ms = parseInt(document.getElementById('logs-interval-sel').value) || 1000;
-                    logsInterval = setInterval(loadLogs, ms);
+                    logsInterval = setInterval(cargarLogs, ms);
                 }
             }
-            if (name === 'console') {
+            if (name === 'consola') {
                 setTimeout(() => document.getElementById('consola-input').focus(), 50);
             }
         }
 
-        // ── Status indicator ──────────────────────────────────────────
-        let currentStatus = 'ok';
+        // ── Estado indicador ──────────────────────────────────────────
+        let estadoActual = 'ok';
 
-        // Keys dismissed by the user until they change
-        let _dismissedHealthItems = new Set();
-        let _healthSnapshot = {};
+        // Keys silenciadas por el usuario hasta que cambien
+        let _healthSilenciados = new Set();
+        // Snapshot de items activos (para detectar si cambia un item silenciado)
+        let _healthSnap = {};
 
         function toggleTooltip() {
             const tt = document.getElementById('estado-tooltip');
-            tooltipOpen = !tooltipOpen;
-            tt.classList.toggle('show', tooltipOpen);
+            tooltipAbierto = !tooltipAbierto;
+            tt.classList.toggle('show', tooltipAbierto);
         }
         document.addEventListener('click', e => {
             if (!document.getElementById('estado-wrapper').contains(e.target)) {
-                tooltipOpen = false;
+                tooltipAbierto = false;
                 document.getElementById('estado-tooltip').classList.remove('show');
             }
         });
 
-        function dismissHealthItem(key, event) {
+        function descartarItemHealth(key, event) {
             if (event) event.stopPropagation();
-            _dismissedHealthItems.add(key);
-            renderTooltipWithDismissals();
+            _healthSilenciados.add(key);
+            // Re-renderizar tooltip sin ese item
+            _renderTooltipConSilenciados();
         }
 
-        function dismissAllHealth() {
-            Object.keys(_healthSnapshot).forEach(key => _dismissedHealthItems.add(key));
-            renderTooltipWithDismissals();
-            updateIndicatorWithDismissals();
+        function descartarTodosHealth() {
+            // Silencia todo lo que esté en el snap actual
+            Object.keys(_healthSnap).forEach(k => _healthSilenciados.add(k));
+            _renderTooltipConSilenciados();
+            // Si ya no queda nada visible, actualizar el indicador a ok visualmente
+            _actualizarIndicadorConSilenciados();
         }
 
-        function renderTooltipWithDismissals() {
-            const ttc = document.getElementById('tt-content');
+        function _renderTooltipConSilenciados() {
+            const ttc    = document.getElementById('tt-content');
             const footer = document.getElementById('tt-footer');
-            const items = Object.values(_healthSnapshot).filter(item => !_dismissedHealthItems.has(item.key));
+            const items  = Object.values(_healthSnap).filter(i => !_healthSilenciados.has(i.key));
 
             if (!items.length) {
-                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot green"></div><span style="color:#3fb950;">Everything is fine (or dismissed)</span></div>';
+                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot green"></div><span style="color:#3fb950;">Todo en orden (o silenciado)</span></div>';
                 footer.style.display = 'none';
             } else {
-                ttc.innerHTML = items.map(item =>
+                ttc.innerHTML = items.map(i =>
                     `<div class="tt-item">
-                        <div class="tt-dot ${item.type}"></div>
-                        <span style="flex:1;">${item.text}</span>
-                        <button class="tt-dismiss" title="Dismiss" onclick="dismissHealthItem('${item.key}', event)">✕</button>
+                        <div class="tt-dot ${i.tipo}"></div>
+                        <span style="flex:1;">${i.texto}</span>
+                        <button class="tt-dismiss" title="Descartar" onclick="descartarItemHealth('${i.key}', event)">✕</button>
                     </div>`
                 ).join('');
                 footer.style.display = 'flex';
             }
         }
 
-        function updateIndicatorWithDismissals() {
+        function _actualizarIndicadorConSilenciados() {
             const dot = document.getElementById('estado-dot');
             const txt = document.getElementById('estado-txt');
-            const visibleItems = Object.values(_healthSnapshot).filter(item => !_dismissedHealthItems.has(item.key));
-            const hasCritical = visibleItems.some(item => item.type === 'red');
-            const hasWarnings = visibleItems.some(item => item.type === 'yellow');
+            const itemsVisibles = Object.values(_healthSnap).filter(i => !_healthSilenciados.has(i.key));
+            const hayProblemas  = itemsVisibles.some(i => i.tipo === 'red');
+            const hayWarn       = itemsVisibles.some(i => i.tipo === 'yellow');
 
-            if (!visibleItems.length) {
+            if (!itemsVisibles.length) {
                 dot.className = ''; txt.className = 'ok'; txt.textContent = '● Online';
-            } else if (hasCritical) {
-                dot.className = 'critical'; txt.className = 'critical'; txt.textContent = '🔴 Critical';
-            } else if (hasWarnings) {
-                dot.className = 'warn'; txt.className = 'warn'; txt.textContent = '⚠ Warnings';
+            } else if (hayProblemas) {
+                dot.className = 'critical'; txt.className = 'critical'; txt.textContent = '🔴 Crítico';
+            } else if (hayWarn) {
+                dot.className = 'warn'; txt.className = 'warn'; txt.textContent = '⚠ Advertencias';
             }
         }
 
-        async function refreshStatus() {
+        async function actualizarEstado() {
             const dot = document.getElementById('estado-dot');
             const txt = document.getElementById('estado-txt');
             const ttc = document.getElementById('tt-content');
             try {
                 const res  = await fetch('/health');
                 const data = await res.json();
-                const level = data.level || 'ok';
-                currentStatus = level;
+                const nivel = data.nivel || 'ok';
+                estadoActual = nivel;
 
-                const nextSnapshot = {};
-                const items = [
-                    ...(data.critical_issues || []).map(item => ({key:`p:${item}`, type:'red', text:item})),
-                    ...(data.warnings || []).map(item => ({key:`a:${item}`, type:'yellow', text:item})),
+                // Construir snapshot de todos los items del health
+                const nuevoSnap = {};
+                const todos = [
+                    ...(data.problemas   || []).map(p => ({key:'p:'+p, tipo:'red',    texto:p})),
+                    ...(data.advertencias|| []).map(p => ({key:'a:'+p, tipo:'yellow', texto:p})),
                 ];
-                items.forEach(item => { nextSnapshot[item.key] = item; });
+                todos.forEach(i => { nuevoSnap[i.key] = i; });
 
-                [..._dismissedHealthItems].forEach(key => {
-                    if (!nextSnapshot[key]) _dismissedHealthItems.delete(key);
+                // Si un item silenciado ya no existe en el nuevo snap, lo des-silenciamos
+                // (el problema desapareció → si vuelve, debe mostrarse de nuevo)
+                [..._healthSilenciados].forEach(k => {
+                    if (!nuevoSnap[k]) _healthSilenciados.delete(k);
                 });
 
-                _healthSnapshot = nextSnapshot;
+                _healthSnap = nuevoSnap;
 
-                let threadsHtml = '';
-                if (data.threads && Object.keys(data.threads).length) {
-                    threadsHtml = '<div class="tt-title" style="margin-top:10px;">Threads</div>' +
-                        Object.entries(data.threads).map(([key, value]) =>
-                            `<div class="tt-item"><div class="tt-dot ${value==='alive'?'green':'red'}"></div><span>${key}: ${value}</span></div>`
+                // Renderizar tooltip
+                let hilosHtml = '';
+                if (data.hilos && Object.keys(data.hilos).length) {
+                    hilosHtml = '<div class="tt-title" style="margin-top:10px;">Hilos</div>' +
+                        Object.entries(data.hilos).map(([k,v]) =>
+                            `<div class="tt-item"><div class="tt-dot ${v==='vivo'?'green':'red'}"></div><span>${k}: ${v}</span></div>`
                         ).join('');
                 }
 
-                _healthSnapshot.__threads__ = { key:'__threads__', threadsHtml };
+                // Guardar hilos en snap para renderizado
+                _healthSnap['__hilos__'] = { key:'__hilos__', _hilosHtml: hilosHtml };
 
-                renderTooltipWithDismissals();
+                _renderTooltipConSilenciados();
 
-                if (threadsHtml) ttc.innerHTML += threadsHtml;
+                // Añadir hilos al final del tooltip siempre (no son descartables)
+                if (hilosHtml) ttc.innerHTML += hilosHtml;
 
-                updateIndicatorWithDismissals();
+                // Indicador visual — respeta silenciados
+                _actualizarIndicadorConSilenciados();
+
+                // Las alertas de health se muestran en el tooltip, no en el panel lateral.
+                // El panel lateral es solo para eventos puntuales (spikes, contenedor caído en el momento).
 
             } catch(e) {
                 dot.className = 'offline';
                 txt.className = 'offline';
                 txt.textContent = '○ Offline';
-                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot red"></div><span style="color:#f85149;">No response from the server</span></div>';
+                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot red"></div><span style="color:#f85149;">Sin respuesta del servidor</span></div>';
                 document.getElementById('tt-footer').style.display = 'none';
             }
         }
 
         // ── Chat ──────────────────────────────────────────────────────
-        input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar(); });
 
-        async function sendMessage() {
-            const text = input.value.trim(); if (!text) return;
-            const userBubble = document.createElement('div'); userBubble.className = 'mensaje usuario'; userBubble.textContent = text;
-            chat.appendChild(userBubble); input.value = ''; chat.scrollTop = chat.scrollHeight;
-            const assistantBubble = document.createElement('div'); assistantBubble.className = 'mensaje asistente';
-            assistantBubble.innerHTML = '<span style="color:#8b949e;">⚡ Processing...</span>';
-            chat.appendChild(assistantBubble); chat.scrollTop = chat.scrollHeight;
+        async function enviar() {
+            const texto = input.value.trim(); if (!texto) return;
+            const du = document.createElement('div'); du.className = 'mensaje usuario'; du.textContent = texto;
+            chat.appendChild(du); input.value = ''; chat.scrollTop = chat.scrollHeight;
+            const th = document.createElement('div'); th.className = 'mensaje asistente';
+            th.innerHTML = '<span style="color:#8b949e;">⚡ Procesando...</span>';
+            chat.appendChild(th); chat.scrollTop = chat.scrollHeight;
             try {
-                const res  = await fetch('/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})});
+                const res  = await fetch('/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({texto})});
                 const data = await res.json();
-                assistantBubble.textContent = data.reply;
-                refreshTokens();
-                setTimeout(loadActivity, 1500);
-            } catch(e) { assistantBubble.textContent = '❌ Error connecting to Jarvis.'; }
+                th.textContent = data.respuesta;
+                actualizarTokens();
+                setTimeout(cargarActividad, 1500);
+            } catch(e) { th.textContent = '❌ Error al conectar con Jarvis.'; }
         }
 
         // ── Dashboard ─────────────────────────────────────────────────
-        async function restartContainer(name) {
-            const res  = await fetch(`/docker/restart/${name}`, {method:'POST'});
+        async function reiniciarContenedor(nombre) {
+            const res  = await fetch(`/docker/restart/${nombre}`, {method:'POST'});
             const data = await res.json();
-            showAlert(data.message, data.ok ? 'success' : 'danger');
+            mostrarAlerta(data.mensaje, data.ok ? 'success' : 'danger');
         }
         async function dockerUp() {
             const data = (await(await fetch('/docker/up', {method:'POST'})).json());
-            showAlert(data.message, data.ok ? 'success' : 'danger');
+            mostrarAlerta(data.mensaje, data.ok ? 'success' : 'danger');
         }
-        function showAlert(message, type) {
-            const alertNode = document.createElement('div'); alertNode.className = `alerta ${type}`; alertNode.textContent = message;
-            document.getElementById('alertas').appendChild(alertNode); setTimeout(() => alertNode.remove(), 5000);
+        function mostrarAlerta(msg, tipo) {
+            const d = document.createElement('div'); d.className = `alerta ${tipo}`; d.textContent = msg;
+            document.getElementById('alertas').appendChild(d); setTimeout(() => d.remove(), 5000);
         }
-        function colorStat(element, value, warn, danger) {
-            element.classList.remove('ok','warn','danger');
-            element.classList.add(value >= danger ? 'danger' : value >= warn ? 'warn' : 'ok');
+        function colorStat(el, val, warn, danger) {
+            el.classList.remove('ok','warn','danger');
+            el.classList.add(val >= danger ? 'danger' : val >= warn ? 'warn' : 'ok');
         }
 
         const makeChart = (id, color) => new Chart(document.getElementById(id), {
@@ -747,38 +766,40 @@
             ]}, options:{animation:false, plugins:{legend:{display:true, labels:{color:'#8b949e', boxWidth:12}}}, scales:{x:{display:false}, y:{display:true, ticks:{color:'#8b949e'}, grid:{color:'#21262d'}}}}
         });
 
-        let cpuAlertShown = false, ramAlertShown = false, diskAlertShown = false;
+        let alertaCPU = false, alertaRAM = false, alertaDisco = false;
 
-        async function refreshDashboard() {
+        async function actualizarDashboard() {
             try {
                 const res = await fetch('/stats'); const d = await res.json();
                 document.getElementById('cpu-stat').textContent   = d.cpu + '%';        colorStat(document.getElementById('cpu-stat'),   d.cpu,        70, 90);
                 document.getElementById('ram-stat').textContent   = d.ram_pct + '%';    colorStat(document.getElementById('ram-stat'),   d.ram_pct,    70, 90);
-                document.getElementById('disco-stat').textContent = d.disk_pct + '%';   colorStat(document.getElementById('disco-stat'), d.disk_pct,   70, 90);
+                document.getElementById('disco-stat').textContent = d.disco_pct + '%';  colorStat(document.getElementById('disco-stat'), d.disco_pct,  70, 90);
                 document.getElementById('ram-label').textContent   = `${d.ram_used}GB / ${d.ram_total}GB`;
-                document.getElementById('disco-label').textContent = `${d.disk_free}GB free`;
+                document.getElementById('disco-label').textContent = `${d.disco_libre}GB libres`;
 
-                // Network - these are real KB/s values from the server
+                // Red — ahora son KB/s reales desde el servidor
                 document.getElementById('recv-stat').textContent = formatNet(d.recv_kbps);
                 document.getElementById('sent-stat').textContent = formatNet(d.sent_kbps);
 
                 const tempEl = document.getElementById('temp-stat'); tempEl.textContent = d.temp ? d.temp + '°C' : '--°C';
                 if (d.temp) colorStat(tempEl, d.temp, 70, 85);
 
-                if (d.cpu >= 90 && !cpuAlertShown) { showAlert(`⚠️ CPU at ${d.cpu}%!`, 'danger'); addPanelAlert('critical', `🔴 CPU at ${d.cpu}%`, 'dash-cpu'); cpuAlertShown = true; } else if (d.cpu < 80) { cpuAlertShown = false; activeAlerts = activeAlerts.filter(alert => alert.key !== 'dash-cpu'); renderAlerts(); }
-                if (d.ram_pct >= 85 && !ramAlertShown) { showAlert(`⚠️ RAM at ${d.ram_pct}%!`, 'danger'); addPanelAlert('critical', `🔴 RAM at ${d.ram_pct}%`, 'dash-ram'); ramAlertShown = true; } else if (d.ram_pct < 75) { ramAlertShown = false; activeAlerts = activeAlerts.filter(alert => alert.key !== 'dash-ram'); renderAlerts(); }
-                if (d.disk_pct >= 85 && !diskAlertShown) { showAlert(`⚠️ Disk at ${d.disk_pct}%!`, 'danger'); addPanelAlert('critical', `🔴 Disk at ${d.disk_pct}%`, 'dash-disk'); diskAlertShown = true; } else if (d.disk_pct < 75) { diskAlertShown = false; activeAlerts = activeAlerts.filter(alert => alert.key !== 'dash-disk'); renderAlerts(); }
+                if (d.cpu  >= 90 && !alertaCPU)   { mostrarAlerta('⚠️ CPU al '   +d.cpu+'%!',   'danger'); agregarAlertaPanel('critica', `🔴 CPU al ${d.cpu}%`,       'dash-cpu');       alertaCPU   = true; } else if (d.cpu   < 80) { alertaCPU   = false; alertasActivas = alertasActivas.filter(a => a.key !== 'dash-cpu'); renderAlertas(); }
+                if (d.ram_pct >= 85 && !alertaRAM) { mostrarAlerta('⚠️ RAM al '   +d.ram_pct+'%!','danger'); agregarAlertaPanel('critica', `🔴 RAM al ${d.ram_pct}%`,   'dash-ram');       alertaRAM   = true; } else if (d.ram_pct < 75) { alertaRAM   = false; alertasActivas = alertasActivas.filter(a => a.key !== 'dash-ram'); renderAlertas(); }
+                if (d.disco_pct >= 85 && !alertaDisco){ mostrarAlerta('⚠️ Disco al '+d.disco_pct+'%!','danger'); agregarAlertaPanel('critica', `🔴 Disco al ${d.disco_pct}%`,'dash-disco');   alertaDisco = true; } else if (d.disco_pct < 75) { alertaDisco = false; alertasActivas = alertasActivas.filter(a => a.key !== 'dash-disco'); renderAlertas(); }
 
-                const runningNames = new Set((d.containers||[]).filter(container => container.status === 'running').map(container => container.name));
-                (d.containers||[]).filter(container => container.status !== 'running').forEach(container => {
-                    if (!activeAlerts.find(alert => alert.key === `c-${container.name}`))
-                        addPanelAlert('warning', `⚠️ Container down: ${container.name}`, `c-${container.name}`);
+                const nombresRunning = new Set((d.containers||[]).filter(c=>c.estado==='running').map(c=>c.nombre));
+                // Añadir alerta si está caído y no existe ya
+                (d.containers||[]).filter(c=>c.estado!=='running').forEach(c=>{
+                    if (!alertasActivas.find(a=>a.key===`c-${c.nombre}`))
+                        agregarAlertaPanel('advertencia',`⚠️ Contenedor caído: ${c.nombre}`,`c-${c.nombre}`);
                 });
-                activeAlerts = activeAlerts.filter(alert => {
-                    if (!alert.key.startsWith('c-')) return true;
-                    return !runningNames.has(alert.key.slice(2));
+                // Limpiar alerta si el contenedor volvió a running
+                alertasActivas = alertasActivas.filter(a => {
+                    if (!a.key.startsWith('c-')) return true;
+                    return !nombresRunning.has(a.key.slice(2));
                 });
-                renderAlerts();
+                renderAlertas();
 
                 cpuChart.data.datasets[0].data.push(d.cpu);        cpuChart.data.datasets[0].data.shift(); cpuChart.update();
                 ramChart.data.datasets[0].data.push(d.ram_pct);     ramChart.data.datasets[0].data.shift(); ramChart.update();
@@ -787,12 +808,12 @@
 
                 const cs = d.containers || [];
                 document.getElementById('containers-list').innerHTML = cs.length === 0
-                    ? '<div style="color:#8b949e;padding:10px;text-align:center;">⏹ No running containers</div>'
-                    : cs.map(container => `<div class="container-item"><span>${container.name}</span><div style="display:flex;gap:6px;align-items:center;"><span class="badge ${container.status}">${container.status}</span><button class="btn-restart" onclick="restartContainer('${container.name}')">↺ Restart</button></div></div>`).join('');
+                    ? '<div style="color:#8b949e;padding:10px;text-align:center;">⏹ Sin contenedores corriendo</div>'
+                    : cs.map(c => `<div class="container-item"><span>${c.nombre}</span><div style="display:flex;gap:6px;align-items:center;"><span class="badge ${c.estado}">${c.estado}</span><button class="btn-restart" onclick="reiniciarContenedor('${c.nombre}')">↺ Reiniciar</button></div></div>`).join('');
             } catch(e) {}
         }
 
-        // Readable KB/s formatting
+        // Formato legible de KB/s
         function formatNet(kbps) {
             if (kbps >= 1024) return (kbps / 1024).toFixed(1) + ' MB/s';
             if (kbps >= 1)    return kbps.toFixed(1) + ' KB/s';
@@ -800,318 +821,351 @@
         }
 
         // ── Tokens ────────────────────────────────────────────────────
-        async function refreshTokens() {
+        async function actualizarTokens() {
             try {
                 const res = await fetch('/tokens'); const d = await res.json();
-                const web = d.web||0, disc = d.discord||0, total = d.limit||200000;
-                const used = d.used||0, pct = Math.min((used/total)*100, 100);
+                const web = d.web||0, disc = d.discord||0, total = d.total||200000;
+                const usado = d.used||0, pct = Math.min((usado/total)*100, 100);
                 const pctWeb  = Math.min((web/total)*100, 100);
                 const pctDisc = Math.min((disc/total)*100, 100);
-                const remaining = Math.max(total-used, 0);
-                const model = d.model || 'openrouter/free';
-                const shortName = model.split('/').pop().replace(':free','').replace('-instruct','');
+                const restante = Math.max(total-usado, 0);
+                const modelo = d.modelo || 'openrouter/free';
+                const nombreCorto = modelo.split('/').pop().replace(':free','').replace('-instruct','');
                 const colorTotal = pct>=90 ? '#f85149' : pct>=70 ? '#d29922' : '#58a6ff';
-                document.getElementById('ia-tokens-used').textContent   = used.toLocaleString();
-                document.getElementById('ia-tokens-sub').textContent    = `of ${total.toLocaleString()} today`;
+                document.getElementById('ia-tokens-used').textContent   = usado.toLocaleString();
+                document.getElementById('ia-tokens-sub').textContent    = `de ${total.toLocaleString()} hoy`;
                 document.getElementById('ia-tokens-web').textContent    = web.toLocaleString();
                 document.getElementById('ia-tokens-discord').textContent= disc.toLocaleString();
-                document.getElementById('ia-tokens-rest').textContent   = remaining.toLocaleString();
+                document.getElementById('ia-tokens-rest').textContent   = restante.toLocaleString();
                 document.getElementById('ia-tokens-rest').style.color   = pct>=90?'#f85149':pct>=70?'#d29922':'#3fb950';
                 document.getElementById('ia-bar-web').style.width     = pctWeb+'%';
                 document.getElementById('ia-bar-discord').style.width = pctDisc+'%';
-                document.getElementById('ia-modelo-nombre').textContent = shortName;
+                document.getElementById('ia-modelo-nombre').textContent = nombreCorto;
                 document.getElementById('ia-card-tokens').className = 'ia-stat-card'+(pct>=90?' red':pct>=70?' yellow':'');
-                if (d.date)       document.getElementById('ia-tokens-fecha').textContent = 'today ' + d.date;
-                if (d.last_sync) document.getElementById('ia-ultima-sync').textContent  = 'sync: ' + d.last_sync;
-                document.getElementById('bar-modelo').textContent        = shortName;
+                if (d.fecha)       document.getElementById('ia-tokens-fecha').textContent = 'hoy ' + d.fecha;
+                if (d.ultima_sync) document.getElementById('ia-ultima-sync').textContent  = 'sync: ' + d.ultima_sync;
+                document.getElementById('bar-modelo').textContent        = nombreCorto;
                 document.getElementById('bar-web-tokens').textContent    = web.toLocaleString();
                 document.getElementById('bar-discord-tokens').textContent= disc.toLocaleString();
-                document.getElementById('tokens-used-bar').textContent   = used.toLocaleString();
+                document.getElementById('tokens-used-bar').textContent   = usado.toLocaleString();
                 document.getElementById('tokens-total-bar').textContent  = total.toLocaleString();
                 document.getElementById('tokens-used-bar').style.color   = colorTotal;
                 document.getElementById('bar-web-fill').style.width      = pctWeb+'%';
                 document.getElementById('bar-discord-fill').style.width  = pctDisc+'%';
-                if (pct >= 90) addPanelAlert('critical', `🔴 Tokens at ${Math.round(pct)}%`);
+                if (pct >= 90) agregarAlertaPanel('critica', `🔴 Tokens al ${Math.round(pct)}%`);
             } catch(e) {}
         }
         async function resetTokens() {
             await fetch('/tokens/reset', {method:'POST'});
-            showAlert('Token counter reset ✓', 'success');
-            refreshTokens(); loadTokenHistory();
+            mostrarAlerta('Contador de tokens reseteado ✓', 'success');
+            actualizarTokens(); cargarHistorialTokens();
         }
 
-        // ── Token history ─────────────────────────────────────────────
-        async function loadTokenHistory() {
+        // ── Historial tokens ──────────────────────────────────────────
+        async function cargarHistorialTokens() {
             try {
-                const res  = await fetch('/tokens/history');
+                const res  = await fetch('/tokens/historial');
                 const data = await res.json();
-                const history = data.history || [];
-                const list = document.getElementById('tokens-historial-lista');
-                if (!history.length) { list.innerHTML = '<div class="empty-state">No history yet</div>'; return; }
-                const maxTotal = Math.max(...history.map(entry => entry.used || 0), 1);
-                list.innerHTML = history.map(entry => {
-                    const pctWeb  = Math.round(((entry.web||0) / maxTotal) * 100);
-                    const pctDisc = Math.round(((entry.discord||0) / maxTotal) * 100);
-                    const isToday = entry.is_today ? `<span class="tokens-hist-hoy">today</span>` : '';
-                    const model  = entry.model ? entry.model.split('/').pop().replace(':free','') : '';
+                const hist = data.historial || [];
+                const lista = document.getElementById('tokens-historial-lista');
+                if (!hist.length) { lista.innerHTML = '<div class="empty-state">Sin historial aún</div>'; return; }
+                const maxTotal = Math.max(...hist.map(h => h.total || 0), 1);
+                lista.innerHTML = hist.map(h => {
+                    const pctWeb  = Math.round(((h.web||0) / maxTotal) * 100);
+                    const pctDisc = Math.round(((h.discord||0) / maxTotal) * 100);
+                    const esHoy   = h.es_hoy ? `<span class="tokens-hist-hoy">hoy</span>` : '';
+                    const modelo  = h.modelo ? h.modelo.split('/').pop().replace(':free','') : '';
                     return `<div class="tokens-hist-item">
-                        <span class="tokens-hist-fecha">${entry.date||''}${isToday}</span>
+                        <span class="tokens-hist-fecha">${h.fecha||''}${esHoy}</span>
                         <div class="tokens-hist-bars">
-                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctWeb}%;background:#58a6ff;"></div><span style="font-size:10px;color:#58a6ff;">${(entry.web||0).toLocaleString()}</span></div>
-                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctDisc}%;background:#bc8cff;"></div><span style="font-size:10px;color:#bc8cff;">${(entry.discord||0).toLocaleString()}</span></div>
-                            ${model ? `<div class="tokens-hist-modelo">${model}</div>` : ''}
+                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctWeb}%;background:#58a6ff;"></div><span style="font-size:10px;color:#58a6ff;">${(h.web||0).toLocaleString()}</span></div>
+                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctDisc}%;background:#bc8cff;"></div><span style="font-size:10px;color:#bc8cff;">${(h.discord||0).toLocaleString()}</span></div>
+                            ${modelo ? `<div class="tokens-hist-modelo">${modelo}</div>` : ''}
                         </div>
-                        <span class="tokens-hist-num">${(entry.used||0).toLocaleString()}</span>
+                        <span class="tokens-hist-num">${(h.total||0).toLocaleString()}</span>
                     </div>`;
                 }).join('');
             } catch(e) {
-                document.getElementById('tokens-historial-lista').innerHTML = '<div class="empty-state">Endpoint unavailable</div>';
+                document.getElementById('tokens-historial-lista').innerHTML = '<div class="empty-state">Endpoint no disponible</div>';
             }
         }
 
-        // ── Monitor ───────────────────────────────────────────────────
-        async function loadMonitor() {
+        // ── Vigilante ─────────────────────────────────────────────────
+        async function cargarVigilante() {
             try {
-                const res = await fetch('/monitor'); const d = await res.json();
-                document.getElementById('monitor-interval').value = d.interval_seconds||300;
-                document.getElementById('monitor-cpu').value       = d.cpu_threshold||90;
-                document.getElementById('monitor-ram').value       = d.ram_threshold||85;
-                document.getElementById('monitor-disk').value      = d.disk_threshold||85;
-                document.getElementById('monitor-temp').value      = d.temp_threshold||80;
-                document.getElementById('monitor-hour').value      = d.daily_summary_hour||8;
-                document.getElementById('monitor-interval-min').textContent = `= ${Math.round((d.interval_seconds||300)/60)} min`;
-                updateToggleButton(d.enabled);
-                const statusBar = document.getElementById('bar-monitor-status');
-                if (d.enabled) { statusBar.textContent = '🛡️ Monitor active'; statusBar.style.color = '#3fb950'; }
-                else          { statusBar.textContent = '⏸️ Monitor paused'; statusBar.style.color = '#d29922'; }
+                const res = await fetch('/vigilante'); const d = await res.json();
+                document.getElementById('v-intervalo').value = d.intervalo||300;
+                document.getElementById('v-cpu').value       = d.cpu_umbral||90;
+                document.getElementById('v-ram').value       = d.ram_umbral||85;
+                document.getElementById('v-disco').value     = d.disco_umbral||85;
+                document.getElementById('v-temp').value      = d.temp_umbral||80;
+                document.getElementById('v-hora').value      = d.resumen_hora||8;
+                document.getElementById('v-intervalo-min').textContent = `= ${Math.round((d.intervalo||300)/60)} min`;
+                actualizarToggleBtn(d.activo);
+                const barVig = document.getElementById('bar-vigilante-status');
+                if (d.activo) { barVig.textContent = '🛡️ Vigilante activo'; barVig.style.color = '#3fb950'; }
+                else          { barVig.textContent = '⏸️ Vigilante pausado'; barVig.style.color = '#d29922'; }
             } catch(e) {}
         }
-        function updateToggleButton(enabled) {
-            const btn = document.getElementById('monitor-toggle-btn');
-            const txt = document.getElementById('monitor-status-txt');
-            if (enabled) { btn.textContent = '● Active';  btn.className = 'toggle-btn on';  txt.textContent = 'Monitoring in the background'; }
-            else        { btn.textContent = '○ Paused'; btn.className = 'toggle-btn off'; txt.textContent = 'Monitor is not running'; }
+        function actualizarToggleBtn(activo) {
+            const btn = document.getElementById('vigilante-toggle-btn');
+            const txt = document.getElementById('vigilante-status-txt');
+            if (activo) { btn.textContent = '● Activo';  btn.className = 'toggle-btn on';  txt.textContent = 'Monitoreando en segundo plano'; }
+            else        { btn.textContent = '○ Pausado'; btn.className = 'toggle-btn off'; txt.textContent = 'El vigilante no está corriendo'; }
         }
-        async function toggleMonitor() {
-            const res  = await fetch('/monitor/toggle', {method:'POST'});
+        async function toggleVigilante() {
+            const res  = await fetch('/vigilante/toggle', {method:'POST'});
             const data = await res.json();
-            updateToggleButton(data.enabled);
-            showAlert(data.message, data.enabled ? 'success' : 'warning');
-            loadMonitor();
+            actualizarToggleBtn(data.activo);
+            mostrarAlerta(data.mensaje, data.activo ? 'success' : 'warning');
+            cargarVigilante();
         }
-        async function saveMonitor() {
-            const intervalSeconds = parseInt(document.getElementById('monitor-interval').value);
-            const config = {interval_seconds: intervalSeconds, cpu_threshold:parseInt(document.getElementById('monitor-cpu').value), ram_threshold:parseInt(document.getElementById('monitor-ram').value), disk_threshold:parseInt(document.getElementById('monitor-disk').value), temp_threshold:parseInt(document.getElementById('monitor-temp').value), daily_summary_hour:parseInt(document.getElementById('monitor-hour').value)};
-            const res  = await fetch('/monitor', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(config)});
+        async function guardarVigilante() {
+            const intervalo = parseInt(document.getElementById('v-intervalo').value);
+            const config = {intervalo, cpu_umbral:parseInt(document.getElementById('v-cpu').value), ram_umbral:parseInt(document.getElementById('v-ram').value), disco_umbral:parseInt(document.getElementById('v-disco').value), temp_umbral:parseInt(document.getElementById('v-temp').value), resumen_hora:parseInt(document.getElementById('v-hora').value)};
+            const res  = await fetch('/vigilante', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(config)});
             const data = await res.json();
-            if (data.ok) { showAlert('Config saved ✓', 'success'); document.getElementById('monitor-interval-min').textContent = `= ${Math.round(intervalSeconds/60)} min`; }
+            if (data.ok) { mostrarAlerta('Config guardada ✓', 'success'); document.getElementById('v-intervalo-min').textContent = `= ${Math.round(intervalo/60)} min`; }
         }
-        async function resetMonitor() {
-            await fetch('/monitor', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({interval_seconds:300, cpu_threshold:90, ram_threshold:85, disk_threshold:85, temp_threshold:80, daily_summary_hour:8})});
-            loadMonitor(); showAlert('Monitor reset', 'success');
+        async function resetVigilante() {
+            await fetch('/vigilante', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({intervalo:300, cpu_umbral:90, ram_umbral:85, disco_umbral:85, temp_umbral:80, resumen_hora:8})});
+            cargarVigilante(); mostrarAlerta('Vigilante reseteado', 'success');
         }
         document.addEventListener('DOMContentLoaded', () => {
-            const intervalInput = document.getElementById('monitor-interval');
-            if (intervalInput) intervalInput.addEventListener('input', () => { document.getElementById('monitor-interval-min').textContent = `= ${Math.round(parseInt(intervalInput.value||300)/60)} min`; });
+            const inp = document.getElementById('v-intervalo');
+            if (inp) inp.addEventListener('input', () => { document.getElementById('v-intervalo-min').textContent = `= ${Math.round(parseInt(inp.value||300)/60)} min`; });
         });
 
-        // ── AI panel ──────────────────────────────────────────────────
-        function addPanelAlert(type, text, key) {
-            const alertKey = key || text;
-            if (activeAlerts.find(alert => alert.key === alertKey)) return;
-            const time = new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
-            activeAlerts.unshift({type, text, time, key: alertKey});
-            if (activeAlerts.length > 20) activeAlerts.pop();
-            renderAlerts();
+        // ── Panel IA ──────────────────────────────────────────────────
+        function agregarAlertaPanel(tipo, texto, key) {
+            const k = key || texto;
+            // No insertar si ya existe una alerta con la misma key
+            if (alertasActivas.find(a => a.key === k)) return;
+            const hora = new Date().toLocaleTimeString('es', {hour:'2-digit', minute:'2-digit'});
+            alertasActivas.unshift({tipo, texto, hora, key: k});
+            if (alertasActivas.length > 20) alertasActivas.pop();
+            renderAlertas();
         }
-        function renderAlerts() {
-            const list = document.getElementById('alertas-lista'), count = document.getElementById('ia-alertas-count'), sub = document.getElementById('ia-alertas-sub'), card = document.getElementById('ia-card-alertas');
-            count.textContent = activeAlerts.length;
-            if (!activeAlerts.length) {
-                list.innerHTML = '<div class="empty-state">No alerts ✓</div>';
-                count.className = 'value green'; sub.textContent = 'system stable'; card.className = 'ia-stat-card green';
+        function renderAlertas() {
+            const lista = document.getElementById('alertas-lista'), count = document.getElementById('ia-alertas-count'), sub = document.getElementById('ia-alertas-sub'), card = document.getElementById('ia-card-alertas');
+            count.textContent = alertasActivas.length;
+            if (!alertasActivas.length) {
+                lista.innerHTML = '<div class="empty-state">Sin alertas ✓</div>';
+                count.className = 'value green'; sub.textContent = 'sistema estable'; card.className = 'ia-stat-card green';
             } else {
-                const criticalCount = activeAlerts.filter(alert => alert.type === 'critical').length;
-                count.className = criticalCount>0 ? 'value red' : 'value yellow';
-                sub.textContent = criticalCount>0 ? `${criticalCount} critical` : 'warnings';
-                card.className  = criticalCount>0 ? 'ia-stat-card red' : 'ia-stat-card yellow';
-                list.innerHTML = activeAlerts.map(alert =>
-                    `<div class="alerta-item ${alert.type}" style="display:flex;justify-content:space-between;align-items:center;">
-                        <span style="flex:1;">${alert.text}</span>
-                        <span class="alerta-item-tiempo" style="margin:0 8px;">${alert.time}</span>
-                        <button onclick="dismissPanelAlert('${alert.key}')" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:13px;padding:0 2px;" title="Dismiss">✕</button>
+                const c = alertasActivas.filter(a => a.tipo==='critica').length;
+                count.className = c>0 ? 'value red' : 'value yellow';
+                sub.textContent = c>0 ? `${c} crítica(s)` : 'advertencias';
+                card.className  = c>0 ? 'ia-stat-card red' : 'ia-stat-card yellow';
+                lista.innerHTML = alertasActivas.map(a =>
+                    `<div class="alerta-item ${a.tipo}" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="flex:1;">${a.texto}</span>
+                        <span class="alerta-item-tiempo" style="margin:0 8px;">${a.hora}</span>
+                        <button onclick="descartarAlertaPanel('${a.key}')" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:13px;padding:0 2px;" title="Descartar">✕</button>
                     </div>`
                 ).join('');
             }
         }
-        function dismissPanelAlert(key) {
-            activeAlerts = activeAlerts.filter(alert => alert.key !== key);
-            if (key.startsWith('health-')) _dismissedHealthItems.add(key.replace('health-', ''));
-            renderAlerts();
+        function descartarAlertaPanel(key) {
+            // Quitar del panel
+            alertasActivas = alertasActivas.filter(a => a.key !== key);
+            // Si viene del health, silenciarlo también para que no vuelva en el próximo poll
+            if (key.startsWith('health-')) _healthSilenciados.add(key.replace('health-', ''));
+            renderAlertas();
         }
-        function clearAlerts() {
-            activeAlerts.forEach(alert => {
-                if (alert.key && alert.key.startsWith('health-')) _dismissedHealthItems.add(alert.key.replace('health-', ''));
+        function limpiarAlertas() {
+            // Silenciar todos los items de health que haya en el panel
+            alertasActivas.forEach(a => {
+                if (a.key && a.key.startsWith('health-')) _healthSilenciados.add(a.key.replace('health-', ''));
             });
-            activeAlerts = [];
-            renderAlerts();
+            alertasActivas = [];
+            renderAlertas();
         }
 
-        async function updateAiPanel() {
+        async function actualizarPanelIA() {
             try {
-                const res  = await fetch('/activity'); const data = await res.json(); const logs = data.activity || [];
-                const categories = {system:0, media:0, docker:0, commands:0, home:0};
-                logs.forEach(log => {
-                    const badge = (log.badge||'').toLowerCase();
-                    if      (badge.includes('media')||badge.includes('jellyseerr')||badge.includes('radarr')||badge.includes('sonarr')||badge.includes('jellyfin')||badge.includes('downloads')) categories.media++;
-                    else if (badge.includes('docker'))  categories.docker++;
-                    else if (badge.includes('command')||badge.includes('console')||badge.includes('cmd')) categories.commands++;
-                    else if (badge.includes('home')||badge.includes('assistant')) categories.home++;
-                    else categories.system++;
+                const res  = await fetch('/actividad'); const data = await res.json(); const logs = data.actividad || [];
+                const cats = {sistema:0, media:0, docker:0, cmd:0, ha:0};
+                logs.forEach(a => {
+                    const b = (a.badge||'').toLowerCase();
+                    if      (b.includes('media')||b.includes('jellyseerr')||b.includes('radarr')||b.includes('sonarr')||b.includes('jellyfin')||b.includes('descargas')) cats.media++;
+                    else if (b.includes('docker'))  cats.docker++;
+                    else if (b.includes('comando')||b.includes('consola')||b.includes('cmd')) cats.cmd++;
+                    else if (b.includes('home')||b.includes('assistant')) cats.ha++;
+                    else cats.sistema++;
                 });
-                const total = Object.values(categories).reduce((a,b)=>a+b,0) || 1;
-                [['system','#58a6ff'],['media','#3fb950'],['docker','#bc8cff'],['commands','#d29922'],['home','#f78166']].forEach(([key,color]) => {
-                    const pct = Math.round((categories[key]/total)*100);
-                    document.getElementById(`bar-${key}`).style.width      = pct+'%';
-                    document.getElementById(`bar-${key}`).style.background = color;
-                    document.getElementById(`val-${key}`).textContent       = categories[key];
+                const total = Object.values(cats).reduce((a,b)=>a+b,0) || 1;
+                [['sistema','#58a6ff'],['media','#3fb950'],['docker','#bc8cff'],['cmd','#d29922'],['ha','#f78166']].forEach(([k,c]) => {
+                    const pct = Math.round((cats[k]/total)*100);
+                    document.getElementById(`bar-${k}`).style.width      = pct+'%';
+                    document.getElementById(`bar-${k}`).style.background = c;
+                    document.getElementById(`val-${k}`).textContent       = cats[k];
                 });
             } catch(e) {}
-            renderAlerts();
+            renderAlertas();
         }
 
-        async function loadActivity() {
+        async function cargarActividad() {
             try {
-                const res  = await fetch('/activity'); const data = await res.json(); const list = document.getElementById('actividad-lista'); const logs = data.activity || [];
-                if (!logs.length) { list.innerHTML = '<div class="empty-state">No activity yet</div>'; return; }
-                list.innerHTML = logs.slice(0,25).map(log => `<div class="actividad-item ${log.type}"><span class="act-tiempo">${log.time}</span><span class="act-texto">${log.text}</span><span class="act-badge">${log.badge||''}</span></div>`).join('');
+                const res  = await fetch('/actividad'); const data = await res.json(); const lista = document.getElementById('actividad-lista'); const logs = data.actividad || [];
+                if (!logs.length) { lista.innerHTML = '<div class="empty-state">Sin actividad aún</div>'; return; }
+                lista.innerHTML = logs.slice(0,25).map(a => `<div class="actividad-item ${a.tipo}"><span class="act-tiempo">${a.hora}</span><span class="act-texto">${a.texto}</span><span class="act-badge">${a.badge||''}</span></div>`).join('');
             } catch(e) {}
         }
 
-        async function loadTasks() {
+        async function cargarTareas() {
             try {
-                const res  = await fetch('/tasks'); const data = await res.json();
-                document.getElementById('t-pendientes').textContent = data.pending||0;
-                document.getElementById('t-en-curso').textContent   = data.in_progress||0;
-                document.getElementById('t-reparados').textContent  = data.fixed||0;
-                document.getElementById('t-fallidos').textContent   = data.failed||0;
+                const res  = await fetch('/tareas'); const data = await res.json();
+                document.getElementById('t-pendientes').textContent = data.pendientes||0;
+                document.getElementById('t-en-curso').textContent   = data.en_curso||0;
+                document.getElementById('t-reparados').textContent  = data.reparados||0;
+                document.getElementById('t-fallidos').textContent   = data.fallidos||0;
                 const countEl = document.getElementById('ia-tareas-count'), subEl = document.getElementById('ia-tareas-sub'), card = document.getElementById('ia-card-tareas');
                 countEl.textContent = data.total||0;
-                if ((data.failed||0) > 0)                                      { countEl.className='value red';    subEl.textContent=`${data.failed} failed`;                                   card.className='ia-stat-card red'; }
-                else if ((data.pending||0) > 0 || (data.in_progress||0) > 0)  { countEl.className='value yellow'; subEl.textContent=`${(data.pending||0)+(data.in_progress||0)} active`;      card.className='ia-stat-card yellow'; }
-                else                                                           { countEl.className='value green';  subEl.textContent='no tasks';                                                 card.className='ia-stat-card green'; }
-                const list  = document.getElementById('tareas-lista'), tasks = data.tasks || [];
-                if (!tasks.length) { list.innerHTML = '<div class="empty-state">No tasks ✓</div>'; return; }
-                list.innerHTML = tasks.map(task => `<div class="tarea-item ${task.status}"><div class="tarea-header"><span class="tarea-desc">${task.description}</span><span class="tarea-estado-badge ${task.status} ${task.status==='in_progress'?'pulsing':''}">${taskStatusLabel(task.status)}</span></div><div class="tarea-meta">${task.type}${task.container_name?' · '+task.container_name:''} · ${task.attempts} attempt(s) · ${task.updated_at}</div>${task.result?`<div class="tarea-resultado">${task.result}</div>`:''}</div>`).join('');
+                if ((data.fallidos||0) > 0)                                    { countEl.className='value red';    subEl.textContent=`${data.fallidos} fallida(s)`;                             card.className='ia-stat-card red'; }
+                else if ((data.pendientes||0) > 0 || (data.en_curso||0) > 0)  { countEl.className='value yellow'; subEl.textContent=`${(data.pendientes||0)+(data.en_curso||0)} activa(s)`;   card.className='ia-stat-card yellow'; }
+                else                                                           { countEl.className='value green';  subEl.textContent='sin tareas';                                              card.className='ia-stat-card green'; }
+                const lista  = document.getElementById('tareas-lista'), tareas = data.tareas || [];
+                if (!tareas.length) { lista.innerHTML = '<div class="empty-state">Sin tareas ✓</div>'; return; }
+                lista.innerHTML = tareas.map(t => `<div class="tarea-item ${t.estado}"><div class="tarea-header"><span class="tarea-desc">${t.descripcion}</span><span class="tarea-estado-badge ${t.estado} ${t.estado==='en_curso'?'pulsing':''}">${estadoLabel(t.estado)}</span></div><div class="tarea-meta">${t.tipo}${t.contenedor?' · '+t.contenedor:''} · ${t.intentos} intento(s) · ${t.actualizada}</div>${t.resultado?`<div class="tarea-resultado">${t.resultado}</div>`:''}<div style="display:flex;gap:6px;margin-top:8px;"><button class="btn-sm" onclick="ignorarTarea(${t.id})">Ignorar</button><button class="btn-sm btn-danger" onclick="borrarTarea(${t.id})">Borrar</button></div></div>`).join('');
             } catch(e) {}
         }
-        function taskStatusLabel(status) { return {pending:'⏳ Pending', in_progress:'🔄 In Progress', fixed:'✅ Fixed', failed:'❌ Failed', ignored:'⏭️ Ignored'}[status] || status; }
+        function estadoLabel(e) { return {pendiente:'⏳ Pendiente', en_curso:'🔄 En curso', reparado:'✅ Reparado', fallido:'❌ Fallido', ignorado:'⏭️ Ignorado'}[e] || e; }
 
-        async function loadCommands() {
+        async function ignorarTarea(id) {
+            const res = await fetch(`/tareas/${id}/ignorar`, {method:'POST'});
+            const data = await res.json();
+            mostrarAlerta(data.mensaje || 'Tarea ignorada', data.ok ? 'success' : 'warning');
+            cargarTareas();
+            actualizarEstado();
+        }
+        async function borrarTarea(id) {
+            const res = await fetch(`/tareas/${id}`, {method:'DELETE'});
+            const data = await res.json();
+            mostrarAlerta(data.mensaje || 'Tarea borrada', data.ok ? 'success' : 'warning');
+            cargarTareas();
+            actualizarEstado();
+        }
+        async function ignorarFallidas() {
+            const res = await fetch('/tareas/ignorar-fallidas', {method:'POST'});
+            const data = await res.json();
+            mostrarAlerta(data.mensaje || 'Fallidas ignoradas', 'success');
+            cargarTareas();
+            actualizarEstado();
+        }
+        async function limpiarResueltas() {
+            const res = await fetch('/tareas/limpiar-resueltas', {method:'POST'});
+            const data = await res.json();
+            mostrarAlerta(data.mensaje || 'Tareas limpiadas', 'success');
+            cargarTareas();
+            actualizarEstado();
+        }
+
+        async function cargarComandos() {
             try {
-                const res  = await fetch('/commands'); const data = await res.json(); const list = document.getElementById('cmds-lista');
-                if (!data.commands?.length) { list.innerHTML = '<div class="empty-state">No commands yet</div>'; return; }
-                list.innerHTML = data.commands.slice(0,25).map(command => `<div class="cmd-item"><div class="cmd-text">$ ${command.command}</div><div class="cmd-meta"><span>${command.source||'chat'}</span><span>${command.time||''}</span></div></div>`).join('');
+                const res  = await fetch('/comandos'); const data = await res.json(); const lista = document.getElementById('cmds-lista');
+                if (!data.comandos?.length) { lista.innerHTML = '<div class="empty-state">Sin comandos aún</div>'; return; }
+                lista.innerHTML = data.comandos.slice(0,25).map(c => `<div class="cmd-item"><div class="cmd-text">$ ${c.comando}</div><div class="cmd-meta"><span>${c.origen||'chat'}</span><span>${c.hora||''}</span></div></div>`).join('');
             } catch(e) {}
         }
 
-        async function loadHistory() {
-            const res  = await fetch('/history'); const data = await res.json(); const list = document.getElementById('historial-lista');
-            if (!data.history.length) { list.innerHTML = '<div class="empty-state">No history</div>'; return; }
-            list.innerHTML = data.history.map(message => `<div class="historial-item"><div class="rol">${message.role==='user'?'👤 You':'⚡ Jarvis'}</div><div>${message.content}</div></div>`).join('');
+        async function cargarHistorial() {
+            const res  = await fetch('/historial'); const data = await res.json(); const lista = document.getElementById('historial-lista');
+            if (!data.historial.length) { lista.innerHTML = '<div class="empty-state">Sin historial</div>'; return; }
+            lista.innerHTML = data.historial.map(m => `<div class="historial-item"><div class="rol">${m.role==='user'?'👤 Vos':'⚡ Jarvis'}</div><div>${m.content}</div></div>`).join('');
         }
 
         // ── Logs ──────────────────────────────────────────────────────
-        async function populateLogSelect() {
+        async function poblarSelectLogs() {
             const res  = await fetch('/stats'); const data = await res.json(); const cs = data.containers || [];
             document.getElementById('log-select').innerHTML = [
                 '<option value="__jarvis__">⚡ Jarvis (journalctl)</option>',
-                ...cs.map(container => `<option value="${container.name}">${container.status==='running'?'✅':'❌'} ${container.name}</option>`)
+                ...cs.map(c => `<option value="${c.nombre}">${c.estado==='running'?'✅':'❌'} ${c.nombre}</option>`)
             ].join('');
         }
-        function getSelectedContainer() {
+        function _getContenedorSeleccionado() {
             const custom = document.getElementById('log-custom').value.trim();
             return custom || document.getElementById('log-select').value;
         }
-        async function loadLogs() {
-            const containerName = getSelectedContainer(); if (!containerName) return;
-            const url = containerName === '__jarvis__' ? `/logs/__jarvis__/jarvis` : `/logs/${containerName}`;
+        async function cargarLogs() {
+            const contenedor = _getContenedorSeleccionado(); if (!contenedor) return;
+            const url = contenedor === '__jarvis__' ? `/logs/__jarvis__/jarvis` : `/logs/${contenedor}`;
             try {
                 const res  = await fetch(url); const data = await res.json(); const out = document.getElementById('logs-output');
-                out.textContent   = data.logs || data.error || '(no output)';
+                out.textContent   = data.logs || data.error || '(sin output)';
                 out.scrollTop     = out.scrollHeight;
-                const label = containerName === '__jarvis__' ? 'Jarvis' : containerName;
-                document.getElementById('logs-status').textContent = `${label} · ${new Date().toLocaleTimeString('en-GB')}`;
-            } catch(e) { document.getElementById('logs-status').textContent = 'Load error'; }
+                const nombre = contenedor === '__jarvis__' ? 'Jarvis' : contenedor;
+                document.getElementById('logs-status').textContent = `${nombre} · ${new Date().toLocaleTimeString('es')}`;
+            } catch(e) { document.getElementById('logs-status').textContent = 'Error al cargar'; }
         }
-        function clearLogsPanel() { document.getElementById('logs-output').textContent = ''; document.getElementById('logs-status').textContent = 'Panel cleared'; }
+        function limpiarLogsPanel() { document.getElementById('logs-output').textContent = ''; document.getElementById('logs-status').textContent = 'Panel limpiado'; }
         function toggleAutoLogs() {
             clearInterval(logsInterval);
-            if (document.getElementById('auto-refresh').checked) { const ms = parseInt(document.getElementById('logs-interval-sel').value)||1000; logsInterval = setInterval(loadLogs, ms); }
+            if (document.getElementById('auto-refresh').checked) { const ms = parseInt(document.getElementById('logs-interval-sel').value)||1000; logsInterval = setInterval(cargarLogs, ms); }
         }
         function cambiarIntervaloLogs() {
             clearInterval(logsInterval);
-            if (document.getElementById('auto-refresh').checked) { const ms = parseInt(document.getElementById('logs-interval-sel').value)||1000; logsInterval = setInterval(loadLogs, ms); document.getElementById('logs-status').textContent = `Auto every ${ms/1000}s`; }
+            if (document.getElementById('auto-refresh').checked) { const ms = parseInt(document.getElementById('logs-interval-sel').value)||1000; logsInterval = setInterval(cargarLogs, ms); document.getElementById('logs-status').textContent = `Auto cada ${ms/1000}s`; }
         }
 
-        // ── Discord console permissions ───────────────────────────────
-        async function loadConsolePermissions() {
+        // ── Permisos consola Discord ──────────────────────────────────
+        async function cargarPermisosConsola() {
             try {
-                const res  = await fetch('/console/permissions'); const data = await res.json(); const list = document.getElementById('permisos-lista'); const users = data.users || [];
-                if (!users.length) { list.innerHTML = '<div class="empty-state">No additional authorized users</div>'; return; }
-                list.innerHTML = users.map(user => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0d1117;border-radius:6px;border-left:3px solid #58a6ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${user.name||'No name'}</span><span style="color:#8b949e;margin-left:8px;">${user.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">since ${user.added_at||''}</span></div><button onclick="removeConsolePermission(${user.id})" style="background:#3d1f1f;color:#f85149;border:1px solid #f85149;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Remove</button></div>`).join('');
-            } catch(e) { document.getElementById('permisos-lista').innerHTML = '<div class="empty-state">Endpoint unavailable</div>'; }
+                const res  = await fetch('/consola/permisos'); const data = await res.json(); const lista = document.getElementById('permisos-lista'); const usuarios = data.usuarios || [];
+                if (!usuarios.length) { lista.innerHTML = '<div class="empty-state">Sin usuarios adicionales autorizados</div>'; return; }
+                lista.innerHTML = usuarios.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0d1117;border-radius:6px;border-left:3px solid #58a6ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${u.nombre||'Sin nombre'}</span><span style="color:#8b949e;margin-left:8px;">${u.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">desde ${u.agregado||''}</span></div><button onclick="quitarPermisoConsola(${u.id})" style="background:#3d1f1f;color:#f85149;border:1px solid #f85149;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Quitar</button></div>`).join('');
+            } catch(e) { document.getElementById('permisos-lista').innerHTML = '<div class="empty-state">Endpoint no disponible</div>'; }
         }
-        async function addConsolePermission() {
+        async function agregarPermisoConsola() {
             const idStr  = document.getElementById('perm-id-input').value.trim();
-            const name = document.getElementById('perm-nombre-input').value.trim();
-            if (!idStr || isNaN(parseInt(idStr))) { showAlert('Enter a valid numeric Discord User ID', 'danger'); return; }
-            const res  = await fetch('/console/permissions', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:parseInt(idStr), name})});
+            const nombre = document.getElementById('perm-nombre-input').value.trim();
+            if (!idStr || isNaN(parseInt(idStr))) { mostrarAlerta('Ingresá un Discord User ID numérico válido', 'danger'); return; }
+            const res  = await fetch('/consola/permisos', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:parseInt(idStr), nombre})});
             const data = await res.json();
-            if (data.ok) { showAlert(`User ${name||idStr} added ✓`, 'success'); document.getElementById('perm-id-input').value=''; document.getElementById('perm-nombre-input').value=''; loadConsolePermissions(); }
-            else showAlert(data.message||'Add error', 'warning');
+            if (data.ok) { mostrarAlerta(`Usuario ${nombre||idStr} agregado ✓`, 'success'); document.getElementById('perm-id-input').value=''; document.getElementById('perm-nombre-input').value=''; cargarPermisosConsola(); }
+            else mostrarAlerta(data.mensaje||'Error al agregar', 'warning');
         }
-        async function removeConsolePermission(userId) {
-            const res  = await fetch(`/console/permissions/${userId}`, {method:'DELETE'}); const data = await res.json();
-            if (data.ok) { showAlert('User removed ✓', 'success'); loadConsolePermissions(); }
-            else showAlert(data.message||'Error', 'danger');
+        async function quitarPermisoConsola(userId) {
+            const res  = await fetch(`/consola/permisos/${userId}`, {method:'DELETE'}); const data = await res.json();
+            if (data.ok) { mostrarAlerta('Usuario removido ✓', 'success'); cargarPermisosConsola(); }
+            else mostrarAlerta(data.mensaje||'Error', 'danger');
         }
 
         // ── Modales sistema ───────────────────────────────────────────
-        function confirmSystemAction(action) {
-            pendingAction = action;
-            document.getElementById('modal-titulo').textContent  = action==='apagar' ? '⏻ Shut Down' : '↺ Restart';
-            document.getElementById('modal-texto').textContent   = action==='apagar' ? 'The server will shut down.' : 'The server will restart.';
-            document.getElementById('modal-confirm').textContent = action==='apagar' ? 'Shut Down' : 'Restart';
+        function confirmar(accion) {
+            accionPendiente = accion;
+            document.getElementById('modal-titulo').textContent  = accion==='apagar' ? '⏻ Apagar' : '↺ Reiniciar';
+            document.getElementById('modal-texto').textContent   = accion==='apagar' ? 'El servidor se apagará.' : 'El servidor se reiniciará.';
+            document.getElementById('modal-confirm').textContent = accion==='apagar' ? 'Apagar' : 'Reiniciar';
             document.getElementById('modal').classList.add('show');
         }
-        function closeModal() { document.getElementById('modal').classList.remove('show'); pendingAction = null; }
-        function confirmDockerDown() {
-            pendingAction = 'docker-down';
-            document.getElementById('modal-titulo').textContent  = '⏹ Stop containers';
-            document.getElementById('modal-texto').textContent   = 'docker compose down will be executed.';
-            document.getElementById('modal-confirm').textContent = 'Stop everything';
+        function cerrarModal() { document.getElementById('modal').classList.remove('show'); accionPendiente = null; }
+        function confirmarDockerDown() {
+            accionPendiente = 'docker-down';
+            document.getElementById('modal-titulo').textContent  = '⏹ Apagar contenedores';
+            document.getElementById('modal-texto').textContent   = 'Se ejecutará docker compose down.';
+            document.getElementById('modal-confirm').textContent = 'Apagar todo';
             document.getElementById('modal').classList.add('show');
         }
         document.getElementById('modal-confirm').addEventListener('click', async () => {
-            if (!pendingAction) return; const action = pendingAction; closeModal();
-            if (action === 'apagar')       { const d=(await(await fetch('/system/apagar',{method:'POST'})).json());    showAlert(d.message,'warning'); setManualStatus('shutting_down'); }
-            else if (action === 'reiniciar'){ const d=(await(await fetch('/system/reiniciar',{method:'POST'})).json()); showAlert(d.message,'warning'); setManualStatus('restarting'); }
-            else if (action === 'docker-down') { const d=(await(await fetch('/docker/down',{method:'POST'})).json()); showAlert(d.message,d.ok?'warning':'danger'); }
+            if (!accionPendiente) return; const accion = accionPendiente; cerrarModal();
+            if (accion === 'apagar')       { const d=(await(await fetch('/sistema/apagar',{method:'POST'})).json());    mostrarAlerta(d.mensaje,'warning'); setEstadoManual('apagando'); }
+            else if (accion === 'reiniciar'){ const d=(await(await fetch('/sistema/reiniciar',{method:'POST'})).json()); mostrarAlerta(d.mensaje,'warning'); setEstadoManual('reiniciando'); }
+            else if (accion === 'docker-down') { const d=(await(await fetch('/docker/down',{method:'POST'})).json()); mostrarAlerta(d.mensaje,d.ok?'warning':'danger'); }
         });
 
-        function setManualStatus(type) {
+        function setEstadoManual(tipo) {
             const dot = document.getElementById('estado-dot');
             const txt = document.getElementById('estado-txt');
-            if (type === 'shutting_down')   { dot.className='critical'; txt.className='critical'; txt.textContent='⏻ Shutting down...'; }
-            if (type === 'restarting'){ dot.className='warn';     txt.className='warn';     txt.textContent='↺ Restarting...'; }
+            if (tipo === 'apagando')   { dot.className='critical'; txt.className='critical'; txt.textContent='⏻ Apagando...'; }
+            if (tipo === 'reiniciando'){ dot.className='warn';     txt.className='warn';     txt.textContent='↺ Reiniciando...'; }
         }
 
         // ── CONSOLA WEB ───────────────────────────────────────────────
         let consolaCwd      = '/srv/nas';
         let consolaHistorial= [];
         let consolaHistIdx  = -1;
-        let consolaPendiente= null; // dangerous command waiting for confirmation
+        let consolaPendiente= null; // comando peligroso esperando confirmación
 
         const COMANDOS_PELIGROSOS = ['rm ','rmdir','dd ','mkfs','fdisk','format','shutdown','reboot','poweroff','halt','chmod 777','chown','> /dev/','truncate','docker system prune','docker volume prune'];
 
@@ -1146,7 +1200,7 @@
 
         function consolaLimpiar() {
             consolaOut.innerHTML = '';
-            consolaEscribir('Terminal cleared.', 'info-line');
+            consolaEscribir('Terminal limpiada.', 'info-line');
         }
 
         async function consolaEjecutar(cmd) {
@@ -1173,14 +1227,14 @@
                     consolaEscribir(data.output, eErr ? 'error-line' : 'output-line');
                 }
             } catch(e) {
-                consolaEscribir('Connection error with Jarvis', 'error-line');
+                consolaEscribir('Error de conexión con Jarvis', 'error-line');
             }
         }
 
         function consolaShortcut(cmd) {
             consolaInput.value = cmd;
             consolaInput.focus();
-            // run directly
+            // ejecutar directo
             consolaEnviar();
         }
 
@@ -1203,7 +1257,7 @@
 
         function cerrarConsolaDanger() {
             document.getElementById('consola-danger-modal').classList.remove('show');
-            consolaEscribir('Command canceled.', 'info-line');
+            consolaEscribir('Comando cancelado.', 'info-line');
             consolaPendiente = null;
         }
 
@@ -1229,25 +1283,25 @@
             if (e.key === 'l' && e.ctrlKey) { e.preventDefault(); consolaLimpiar(); }
         });
 
-        // Welcome message for the console
+        // Mensaje de bienvenida en la consola
         (function() {
-            consolaEscribir('Jarvis Web Console — connected', 'info-line');
-            consolaEscribir(`cwd: ${consolaCwd}  |  Ctrl+L to clear  |  ↑↓ for history`, 'info-line');
+            consolaEscribir('Jarvis Web Console — conectado', 'info-line');
+            consolaEscribir(`cwd: ${consolaCwd}  |  Ctrl+L para limpiar  |  ↑↓ para historial`, 'info-line');
             consolaEscribir('', 'info-line');
         })();
 
         // ── Init ──────────────────────────────────────────────────────
-        setInterval(refreshDashboard, 3000);
-        setInterval(refreshTokens,    8000);
-        setInterval(refreshStatus,    15000);
+        setInterval(actualizarDashboard, 3000);
+        setInterval(actualizarTokens,    8000);
+        setInterval(actualizarEstado,    15000);
         setInterval(() => {
-            if (document.getElementById('panel-ai').style.display === 'block') {
-                loadTasks(); loadActivity(); loadMonitor(); updateAiPanel();
+            if (document.getElementById('panel-ia').style.display === 'block') {
+                cargarTareas(); cargarActividad(); cargarVigilante(); actualizarPanelIA();
             }
         }, 10000);
-        refreshDashboard();
-        refreshTokens();
-        refreshStatus();
+        actualizarDashboard();
+        actualizarTokens();
+        actualizarEstado();
     </script>
 </body>
 </html>

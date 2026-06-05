@@ -1,9 +1,9 @@
 """
-Repair agent - smart auto-repair with specific diagnostics.
-- Detects the exact error type (YAML, port, permissions, OOM, etc.)
-- Reports the relevant line/file when possible
-- Suggests a specific fix in the DM
-- Does NOT edit files on its own - it only reports
+Reparador — auto-reparación inteligente con diagnóstico específico.
+- Detecta tipo exacto de error (YAML, puerto, permisos, OOM, etc.)
+- Indica línea/archivo del problema cuando es posible
+- Sugiere fix específico en el DM
+- NO edita archivos por su cuenta — solo reporta
 """
 import json
 import os
@@ -14,427 +14,468 @@ import subprocess
 import psutil
 from datetime import datetime
 from core.config import ACTIVIDAD_LOG
-from core.actividad import record_activity
-from core.sistema import get_containers
+from core.actividad import registrar as log_actividad
 
-TASKS_FILE = os.path.join(os.path.dirname(ACTIVIDAD_LOG), "tareas_reparacion.json")
+TAREAS_FILE = os.path.join(os.path.dirname(ACTIVIDAD_LOG), "tareas_reparacion.json")
 
-PENDING = "pending"
-IN_PROGRESS = "in_progress"
-FIXED = "fixed"
-FAILED = "failed"
-IGNORED = "ignored"
+PENDIENTE = "pendiente"
+EN_CURSO  = "en_curso"
+REPARADO  = "reparado"
+FALLIDO   = "fallido"
+IGNORADO  = "ignorado"
 
-_lock = threading.Lock()
-_dm_sender = None
+_lock  = threading.Lock()
+_dm_fn = None
 
-ERROR_PATTERNS = [
+
+# ── Patrones de error con sugerencia de fix ───────────────────────────
+PATRONES_ERROR = [
     {
-        "pattern": r"invalid yaml|yaml.*error|mapping values are not allowed|could not find expected",
-        "type": "Invalid YAML",
-        "category": "config",
-        "fix": "Check the indentation in the .yml file - use 2 spaces, not tabs. You can validate it with: `docker compose config`",
+        "patron":    r"invalid yaml|yaml.*error|mapping values are not allowed|could not find expected",
+        "tipo":      "YAML inválido",
+        "categoria": "config",
+        "fix":       "Revisá la indentación del archivo .yml — usá 2 espacios, no tabs. Podés validarlo con: `docker compose config`"
     },
     {
-        "pattern": r"address already in use|port.*already allocated|bind.*address.*use",
-        "type": "Port already in use",
-        "category": "config",
-        "fix": "Another process is already using that port. Check with: `ss -tlnp | grep <port>`",
+        "patron":    r"address already in use|port.*already allocated|bind.*address.*use",
+        "tipo":      "Puerto ocupado",
+        "categoria": "config",
+        "fix":       "Otro proceso ya usa ese puerto. Chequeá con: `ss -tlnp | grep <puerto>`"
     },
     {
-        "pattern": r"permission denied|operation not permitted",
-        "type": "Insufficient permissions",
-        "category": "config",
-        "fix": "There is a permission issue in a file or directory. Check with: `ls -la <path>`",
+        "patron":    r"permission denied|operation not permitted",
+        "tipo":      "Permisos insuficientes",
+        "categoria": "config",
+        "fix":       "Problema de permisos en un archivo o directorio. Chequeá con: `ls -la <ruta>`"
     },
     {
-        "pattern": r"no such file or directory|not found.*path|cannot find",
-        "type": "File not found",
-        "category": "config",
-        "fix": "A file or directory referenced in the config does not exist. Check the volumes and paths in the compose file.",
+        "patron":    r"no such file or directory|not found.*path|cannot find",
+        "tipo":      "Archivo no encontrado",
+        "categoria": "config",
+        "fix":       "Un archivo o directorio referenciado en la config no existe. Revisá los volúmenes y paths en el compose."
     },
     {
-        "pattern": r"environment variable.*not set|required.*env|missing.*environment",
-        "type": "Missing environment variable",
-        "category": "config",
-        "fix": "A required environment variable is missing. Check your .env file and the compose file.",
+        "patron":    r"environment variable.*not set|required.*env|missing.*environment",
+        "tipo":      "Variable de entorno faltante",
+        "categoria": "config",
+        "fix":       "Falta definir una variable de entorno. Revisá tu archivo .env y el compose."
     },
     {
-        "pattern": r"invalid.*config|configuration.*error|failed to parse|parse error",
-        "type": "Configuration error",
-        "category": "config",
-        "fix": "The configuration file has a syntax error. Check the file mentioned in the log.",
+        "patron":    r"invalid.*config|configuration.*error|failed to parse|parse error",
+        "tipo":      "Error de configuración",
+        "categoria": "config",
+        "fix":       "El archivo de configuración tiene un error de sintaxis. Revisá el archivo mencionado en el log."
     },
     {
-        "pattern": r"out of memory|oom|killed.*oom|memory.*limit",
-        "type": "Out of memory (OOM)",
-        "category": "transient",
-        "fix": "The container was killed because it ran out of RAM. Consider increasing the memory limits in the compose file.",
+        "patron":    r"out of memory|oom|killed.*oom|memory.*limit",
+        "tipo":      "Sin memoria (OOM)",
+        "categoria": "transitorio",
+        "fix":       "El contenedor fue matado por falta de RAM. Considerá aumentar los límites de memoria en el compose."
     },
     {
-        "pattern": r"connection refused|dial tcp.*refused|no route to host",
-        "type": "Connection refused",
-        "category": "transient",
-        "fix": "The container cannot connect to another service. Verify that its dependencies are running.",
+        "patron":    r"connection refused|dial tcp.*refused|no route to host",
+        "tipo":      "Conexión rechazada",
+        "categoria": "transitorio",
+        "fix":       "El contenedor no puede conectarse a otro servicio. Verificá que las dependencias estén corriendo."
     },
     {
-        "pattern": r"exit code [^0]|exited with code [^0]|exit status [^0]",
-        "type": "Process exited with error",
-        "category": "transient",
-        "fix": "The internal process exited with an error. Check the full logs for more details.",
+        "patron":    r"exit code [^0]|exited with code [^0]|exit status [^0]",
+        "tipo":      "Salida con error",
+        "categoria": "transitorio",
+        "fix":       "El proceso interno terminó con error. Revisá los logs completos para más detalles."
     },
     {
-        "pattern": r"database.*error|db.*connection|sql.*error|postgres.*error|mysql.*error",
-        "type": "Database error",
-        "category": "transient",
-        "fix": "There is a database issue. Verify that the DB container is running and reachable.",
+        "patron":    r"database.*error|db.*connection|sql.*error|postgres.*error|mysql.*error",
+        "tipo":      "Error de base de datos",
+        "categoria": "transitorio",
+        "fix":       "Problema con la base de datos. Verificá que el contenedor de DB esté corriendo y accesible."
     },
     {
-        "pattern": r"timeout|timed out|deadline exceeded",
-        "type": "Timeout",
-        "category": "transient",
-        "fix": "The service took too long to respond. It may be high load or a slow dependency.",
+        "patron":    r"timeout|timed out|deadline exceeded",
+        "tipo":      "Timeout",
+        "categoria": "transitorio",
+        "fix":       "El servicio tardó demasiado en responder. Puede ser carga alta o dependencia lenta."
     },
     {
-        "pattern": r"disk.*full|no space left|quota exceeded",
-        "type": "Disk full",
-        "category": "config",
-        "fix": "There is no free disk space. Free some space with: `docker system prune -f`",
+        "patron":    r"disk.*full|no space left|quota exceeded",
+        "tipo":      "Disco lleno",
+        "categoria": "config",
+        "fix":       "No hay espacio en disco. Liberá espacio con: `docker system prune -f`"
     },
 ]
 
 
-def start_repair_agent(dm_sender=None):
-    global _dm_sender
-    _dm_sender = dm_sender
-    thread = threading.Thread(target=_repair_loop, daemon=True)
-    thread.start()
-    print("[Repair] Started - checking every 2 minutes.")
+def iniciar(dm_fn=None, background=False):
+    global _dm_fn
+    _dm_fn = dm_fn
+    print("[Reparador] Iniciado — revisando cada 2 minutos.")
+    if background:
+        t = threading.Thread(target=_loop, name="reparador-loop", daemon=True)
+        t.start()
+        return t
+    _loop()
 
 
-def _repair_loop():
+def _loop():
     while True:
         try:
-            _scan_and_repair()
-        except Exception as exc:
-            print(f"[Repair] Error: {exc}")
+            _escanear_y_reparar()
+        except Exception as e:
+            print(f"[Reparador] Error: {e}")
         time.sleep(120)
 
 
-def load_tasks() -> list:
-    if os.path.exists(TASKS_FILE):
-        with open(TASKS_FILE) as file_handle:
+# ── API pública ───────────────────────────────────────────────────────
+
+def cargar_tareas() -> list:
+    if os.path.exists(TAREAS_FILE):
+        with open(TAREAS_FILE) as f:
             try:
-                return json.load(file_handle)
-            except Exception:
+                return json.load(f)
+            except:
                 return []
     return []
 
 
-def save_tasks(tasks: list):
+def guardar_tareas(tareas: list):
     with _lock:
-        with open(TASKS_FILE, "w") as file_handle:
-            json.dump(tasks[:100], file_handle, ensure_ascii=False, indent=2)
+        with open(TAREAS_FILE, "w") as f:
+            json.dump(tareas[:100], f, ensure_ascii=False, indent=2)
 
 
-def add_task(task_type: str, description: str, container_name: str = "") -> dict:
-    tasks = load_tasks()
-    for task in tasks:
-        if (
-            task["type"] == task_type
-            and task.get("container_name") == container_name
-            and task["status"] in (PENDING, IN_PROGRESS)
-        ):
-            return task
-
-    now = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-    task = {
-        "id": int(datetime.now().timestamp() * 1000),
-        "type": task_type,
-        "description": description,
-        "container_name": container_name,
-        "status": PENDING,
-        "created_at": now,
-        "updated_at": now,
-        "attempts": 0,
-        "result": "",
-        "cause": "",
-        "error_type": "",
-        "suggested_fix": "",
+def agregar_tarea(tipo: str, descripcion: str, contenedor: str = "") -> dict:
+    tareas = cargar_tareas()
+    for t in tareas:
+        if t["tipo"] == tipo and t.get("contenedor") == contenedor and t["estado"] in (PENDIENTE, EN_CURSO):
+            return t
+    tarea = {
+        "id":          int(datetime.now().timestamp() * 1000),
+        "tipo":        tipo,
+        "descripcion": descripcion,
+        "contenedor":  contenedor,
+        "estado":      PENDIENTE,
+        "creada":      datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "actualizada": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "intentos":    0,
+        "resultado":   "",
+        "causa":       "",
+        "tipo_error":  "",
+        "fix_sugerido": "",
     }
-    tasks.insert(0, task)
-    save_tasks(tasks)
-    return task
+    tareas.insert(0, tarea)
+    guardar_tareas(tareas)
+    return tarea
 
 
-def update_task(task_id: int, status: str, result: str = "", cause: str = "", error_type: str = "", fix: str = ""):
-    tasks = load_tasks()
-    for task in tasks:
-        if task["id"] == task_id:
-            task["status"] = status
-            task["result"] = result
-            task["updated_at"] = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
-            task["attempts"] = task.get("attempts", 0) + 1
-            if cause:
-                task["cause"] = cause
-            if error_type:
-                task["error_type"] = error_type
-            if fix:
-                task["suggested_fix"] = fix
+def actualizar_tarea(tarea_id: int, estado: str, resultado: str = "", causa: str = "", tipo_error: str = "", fix: str = ""):
+    tareas = cargar_tareas()
+    for t in tareas:
+        if t["id"] == tarea_id:
+            t["estado"]       = estado
+            t["resultado"]    = resultado
+            t["actualizada"]  = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+            t["intentos"]     = t.get("intentos", 0) + 1
+            if causa:      t["causa"]       = causa
+            if tipo_error: t["tipo_error"]  = tipo_error
+            if fix:        t["fix_sugerido"]= fix
             break
-    save_tasks(tasks)
+    guardar_tareas(tareas)
 
 
-def get_task_summary() -> dict:
-    tasks = load_tasks()
+def resumen_tareas() -> dict:
+    todas = cargar_tareas()
+    tareas = [t for t in todas if t.get("estado") != IGNORADO]
     return {
-        "total": len(tasks),
-        "pending": sum(1 for task in tasks if task["status"] == PENDING),
-        "in_progress": sum(1 for task in tasks if task["status"] == IN_PROGRESS),
-        "fixed": sum(1 for task in tasks if task["status"] == FIXED),
-        "failed": sum(1 for task in tasks if task["status"] == FAILED),
-        "tasks": tasks[:20],
+        "total":      len(tareas),
+        "pendientes": sum(1 for t in tareas if t["estado"] == PENDIENTE),
+        "en_curso":   sum(1 for t in tareas if t["estado"] == EN_CURSO),
+        "reparados":  sum(1 for t in tareas if t["estado"] == REPARADO),
+        "fallidos":   sum(1 for t in tareas if t["estado"] == FALLIDO),
+        "ignorados":  sum(1 for t in todas if t.get("estado") == IGNORADO),
+        "tareas":     tareas[:20]
     }
 
 
-def _get_logs(name: str, lines: int = 50) -> str:
+def cambiar_estado_tarea(tarea_id: int, estado: str, resultado: str = "") -> bool:
+    tareas = cargar_tareas()
+    for t in tareas:
+        if t["id"] == tarea_id:
+            t["estado"] = estado
+            t["actualizada"] = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+            if resultado:
+                t["resultado"] = resultado
+            guardar_tareas(tareas)
+            return True
+    return False
+
+
+def borrar_tarea(tarea_id: int) -> bool:
+    tareas = cargar_tareas()
+    nuevas = [t for t in tareas if t["id"] != tarea_id]
+    if len(nuevas) == len(tareas):
+        return False
+    guardar_tareas(nuevas)
+    return True
+
+
+def ignorar_fallidas() -> int:
+    tareas = cargar_tareas()
+    total = 0
+    ahora = datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+    for t in tareas:
+        if t.get("estado") == FALLIDO:
+            t["estado"] = IGNORADO
+            t["actualizada"] = ahora
+            t["resultado"] = t.get("resultado") or "Ignorada manualmente"
+            total += 1
+    if total:
+        guardar_tareas(tareas)
+    return total
+
+
+def limpiar_resueltas() -> int:
+    tareas = cargar_tareas()
+    nuevas = [t for t in tareas if t.get("estado") not in (REPARADO, IGNORADO)]
+    borradas = len(tareas) - len(nuevas)
+    if borradas:
+        guardar_tareas(nuevas)
+    return borradas
+
+
+# ── Diagnóstico ───────────────────────────────────────────────────────
+
+def _obtener_logs(nombre: str, lineas: int = 50) -> str:
     try:
         result = subprocess.run(
-            f"docker logs --tail {lines} {name} 2>&1",
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=15,
+            f"docker logs --tail {lineas} {nombre} 2>&1",
+            shell=True, capture_output=True, text=True, timeout=15
         )
         return (result.stdout + result.stderr).strip()
-    except Exception:
+    except:
         return ""
 
 
-def _analyze_logs(logs: str) -> dict:
+def _analizar_logs(logs: str) -> dict:
+    """
+    Analiza logs con patrones específicos.
+    Devuelve: {categoria, tipo, linea_error, descripcion, fix}
+    """
     if not logs:
         return {
-            "category": "unknown",
-            "type": "No logs",
-            "error_line": "",
-            "description": "Could not retrieve container logs.",
-            "fix": "Verify that the container exists: `docker ps -a`",
+            "categoria":   "desconocido",
+            "tipo":        "Sin logs",
+            "linea_error": "",
+            "descripcion": "No se pudieron obtener logs del contenedor.",
+            "fix":         "Verificá que el contenedor exista: `docker ps -a`"
         }
 
     logs_lower = logs.lower()
-    for pattern in ERROR_PATTERNS:
-        match = re.search(pattern["pattern"], logs_lower)
+
+    for patron in PATRONES_ERROR:
+        match = re.search(patron["patron"], logs_lower)
         if match:
-            error_line = ""
-            for line in logs.splitlines():
-                if re.search(pattern["pattern"], line.lower()):
-                    error_line = line.strip()
+            # Buscar la línea exacta que contiene el error
+            linea_error = ""
+            for linea in logs.splitlines():
+                if re.search(patron["patron"], linea.lower()):
+                    linea_error = linea.strip()
                     break
+
             return {
-                "category": pattern["category"],
-                "type": pattern["type"],
-                "error_line": error_line[:300],
-                "description": f"{pattern['type']}: {error_line[:200]}",
-                "fix": pattern["fix"],
+                "categoria":   patron["categoria"],
+                "tipo":        patron["tipo"],
+                "linea_error": linea_error[:300],
+                "descripcion": f"{patron['tipo']}: {linea_error[:200]}",
+                "fix":         patron["fix"]
             }
 
-    error_lines = [
-        line.strip()
-        for line in logs.splitlines()
-        if any(token in line.lower() for token in ["error", "fatal", "failed", "exception", "panic"])
+    # Sin patrón reconocido — buscar líneas con palabras de error
+    lineas_error = [
+        l.strip() for l in logs.splitlines()
+        if any(x in l.lower() for x in ["error", "fatal", "failed", "exception", "panic"])
     ]
-    if error_lines:
+
+    if lineas_error:
         return {
-            "category": "unknown",
-            "type": "Unclassified error",
-            "error_line": error_lines[-1][:300],
-            "description": f"Detected error: {error_lines[-1][:200]}",
-            "fix": "Check full logs with: `docker logs <container> | tail -100`",
+            "categoria":   "desconocido",
+            "tipo":        "Error no clasificado",
+            "linea_error": lineas_error[-1][:300],
+            "descripcion": f"Error detectado: {lineas_error[-1][:200]}",
+            "fix":         "Revisá los logs completos con: `docker logs <contenedor> | tail -100`"
         }
 
     return {
-        "category": "unknown",
-        "type": "Crash without a clear error",
-        "error_line": logs.splitlines()[-1][:200] if logs.splitlines() else "",
-        "description": "The container stopped without a recognizable error message.",
-        "fix": "Check full logs with: `docker logs <container>`",
+        "categoria":   "desconocido",
+        "tipo":        "Caída sin error claro",
+        "linea_error": logs.splitlines()[-1][:200] if logs.splitlines() else "",
+        "descripcion": "El contenedor se detuvo sin mensaje de error reconocible.",
+        "fix":         "Revisá los logs completos con: `docker logs <contenedor>`"
     }
 
 
-def _verify_compose_syntax(name: str) -> dict | None:
+def _verificar_compose_syntax(nombre: str) -> dict | None:
+    """Verifica sintaxis del compose del contenedor. Devuelve error si hay problema."""
     try:
         base = "/srv/nas/docker"
-        for root, _dirs, files in os.walk(base):
-            for filename in ["docker-compose.yml", "compose.yml"]:
-                if filename in files and name.lower() in root.lower():
-                    compose_path = os.path.join(root, filename)
+        for root, dirs, files in os.walk(base):
+            for f in ["docker-compose.yml", "compose.yml"]:
+                if f in files and nombre.lower() in root.lower():
+                    compose_path = os.path.join(root, f)
                     check = subprocess.run(
                         f"docker compose -f {compose_path} config --quiet 2>&1",
-                        shell=True,
-                        capture_output=True,
-                        text=True,
-                        timeout=15,
+                        shell=True, capture_output=True, text=True, timeout=15
                     )
                     if check.returncode != 0:
                         error = check.stdout.strip() or check.stderr.strip()
-                        line_suffix = ""
-                        match = re.search(r"line (\d+)", error.lower())
-                        if match:
-                            line_suffix = f" (line {match.group(1)})"
+                        # Intentar extraer número de línea
+                        linea_num = ""
+                        m = re.search(r"line (\d+)", error.lower())
+                        if m:
+                            linea_num = f" (línea {m.group(1)})"
                         return {
-                            "category": "config",
-                            "type": f"Invalid YAML{line_suffix}",
-                            "error_line": error[:300],
-                            "description": f"Syntax error in {compose_path}{line_suffix}: {error[:200]}",
-                            "fix": f"Open the file and fix the line{line_suffix}. Validate with: `docker compose -f {compose_path} config`",
+                            "categoria":   "config",
+                            "tipo":        f"YAML inválido{linea_num}",
+                            "linea_error": error[:300],
+                            "descripcion": f"Error de sintaxis en {compose_path}{linea_num}: {error[:200]}",
+                            "fix":         f"Abrí el archivo y corregí la línea{linea_num}. Validar con: `docker compose -f {compose_path} config`"
                         }
-    except Exception:
+    except:
         pass
     return None
 
 
-def _scan_and_repair():
-    containers = get_containers()
-    for container in containers:
-        if container["status"] == "stopped":
-            name = container["name"]
-            task = add_task(
-                task_type="container_down",
-                description=f"Container '{name}' is stopped",
-                container_name=name,
+# ── Escaneo principal ─────────────────────────────────────────────────
+
+def _escanear_y_reparar():
+    from core.sistema import get_containers
+    contenedores = get_containers()
+    for c in contenedores:
+        if c["estado"] == "stopped":
+            nombre = c["nombre"]
+            tarea  = agregar_tarea(
+                tipo="contenedor_caido",
+                descripcion=f"Contenedor '{nombre}' detenido",
+                contenedor=nombre
             )
-            if task["status"] == PENDING:
-                _investigate_and_repair(task)
+            if tarea["estado"] == PENDIENTE:
+                _investigar_y_reparar(tarea)
 
-    disk_pct = psutil.disk_usage("/").percent
-    if disk_pct >= 90:
-        task = add_task(task_type="critical_disk", description=f"Disk at {disk_pct}%")
-        if task["status"] == PENDING:
-            _repair_disk(task, disk_pct)
+    disco = psutil.disk_usage('/').percent
+    if disco >= 90:
+        tarea = agregar_tarea(tipo="disco_critico", descripcion=f"Disco al {disco}%")
+        if tarea["estado"] == PENDIENTE:
+            _reparar_disco(tarea, disco)
 
 
-def _investigate_and_repair(task: dict):
-    name = task["container_name"]
-    update_task(task["id"], IN_PROGRESS)
-    record_activity("auto", f"Investigating why {name} went down...", "Repair")
+def _investigar_y_reparar(tarea: dict):
+    nombre = tarea["contenedor"]
+    actualizar_tarea(tarea["id"], EN_CURSO)
+    log_actividad("auto", f"Investigando caída de {nombre}...", "Reparador")
 
-    compose_error = _verify_compose_syntax(name)
-    logs = _get_logs(name, lines=50)
-    analysis = compose_error if compose_error else _analyze_logs(logs)
+    # 1. Verificar compose primero (más específico)
+    error_compose = _verificar_compose_syntax(nombre)
 
-    cause = analysis["description"]
-    error_type = analysis["type"]
-    fix = analysis["fix"]
-    error_line = analysis.get("error_line", "")
+    # 2. Analizar logs del contenedor
+    logs    = _obtener_logs(nombre, lineas=50)
+    analisis = error_compose if error_compose else _analizar_logs(logs)
 
-    record_activity("auto", f"{name} - {error_type}: {cause[:60]}", "Repair")
+    causa     = analisis["descripcion"]
+    tipo_err  = analisis["tipo"]
+    fix       = analisis["fix"]
+    linea_err = analisis.get("linea_error", "")
 
-    if analysis["category"] == "config":
-        update_task(
-            task["id"],
-            FAILED,
-            result="Configuration error - restarting will not help",
-            cause=cause,
-            error_type=error_type,
-            fix=fix,
-        )
-        record_activity("alert", f"Config error in {name}: {error_type}", "Repair")
+    log_actividad("auto", f"{nombre} — {tipo_err}: {causa[:60]}", "Reparador")
 
-        if _dm_sender:
-            message = (
-                f"⚠️ **Jarvis Repair** - `{name}` is down\n"
-                f"**Type:** {error_type}\n"
+    # 3. Si es error de config → NO reiniciar, reportar con detalle
+    if analisis["categoria"] == "config":
+        actualizar_tarea(tarea["id"], FALLIDO,
+            resultado="Error de configuración — reiniciar no sirve",
+            causa=causa, tipo_error=tipo_err, fix=fix)
+        log_actividad("alert", f"Config error en {nombre}: {tipo_err}", "Reparador")
+
+        if _dm_fn:
+            msg = (
+                f"🔴 **Jarvis Reparador** — `{nombre}` caído\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"**Tipo:** {tipo_err}\n"
             )
-            if error_line:
-                message += f"**Error:**\n```{error_line}```\n"
-            message += (
-                f"**Suggested fix:**\n> {fix}\n"
-                f"Automatic restart will not help - manual correction is required."
+            if linea_err:
+                msg += f"**Error:**\n```{linea_err}```\n"
+            msg += (
+                f"**Fix sugerido:**\n> {fix}\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"⚠️ Reiniciar automáticamente no sirve — requiere corrección manual."
             )
-            _dm_sender(message)
+            _dm_fn(msg)
         return
 
-    _try_restart(task, name, cause, error_type, fix)
+    # 4. Error transitorio → intentar reiniciar
+    _intentar_reinicio(tarea, nombre, causa, tipo_err, fix)
 
 
-def _try_restart(task: dict, name: str, cause: str, error_type: str = "", fix: str = ""):
-    record_activity("auto", f"Trying to restart {name} ({error_type or 'unknown error'})...", "Repair")
+def _intentar_reinicio(tarea: dict, nombre: str, causa: str, tipo_err: str = "", fix: str = ""):
+    log_actividad("auto", f"Intentando reiniciar {nombre} ({tipo_err or 'error desconocido'})...", "Reparador")
     try:
-        subprocess.run(f"docker restart {name}", shell=True, capture_output=True, text=True, timeout=30)
+        subprocess.run(f"docker restart {nombre}", shell=True, capture_output=True, text=True, timeout=30)
         time.sleep(8)
         check = subprocess.run(
-            f"docker inspect -f '{{{{.State.Running}}}}' {name}",
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=10,
+            f"docker inspect -f '{{{{.State.Running}}}}' {nombre}",
+            shell=True, capture_output=True, text=True, timeout=10
         )
         if "true" in check.stdout.lower():
-            update_task(task["id"], FIXED, result="Successful restart", cause=cause, error_type=error_type, fix=fix)
-            record_activity("ok", f"{name} fixed ({error_type or 'transient'})", "Repair")
-            if _dm_sender:
-                _dm_sender(
-                    f"✅ **Jarvis Auto-repair** - `{name}` fixed\n"
-                    f"**Error type:** {error_type or 'transient'}\n"
-                    f"**Cause:** {cause[:200]}"
+            actualizar_tarea(tarea["id"], REPARADO,
+                resultado="Reinicio exitoso ✅",
+                causa=causa, tipo_error=tipo_err, fix=fix)
+            log_actividad("ok", f"✅ {nombre} reparado ({tipo_err or 'transitorio'})", "Reparador")
+            if _dm_fn:
+                _dm_fn(
+                    f"🔧 **Jarvis Auto-repair** — `{nombre}` reparado ✅\n"
+                    f"**Tipo de error:** {tipo_err or 'transitorio'}\n"
+                    f"**Causa:** {causa[:200]}"
                 )
         else:
-            post_logs = _get_logs(name, lines=20)
-            post_analysis = _analyze_logs(post_logs)
-            update_task(
-                task["id"],
-                FAILED,
-                result=f"Restart failed - {post_analysis['type']}",
-                cause=cause,
-                error_type=error_type,
-                fix=post_analysis["fix"],
-            )
-            record_activity("alert", f"{name} did not come back after restart", "Repair")
-            if _dm_sender:
-                _dm_sender(
-                    f"⚠️ **Jarvis** - `{name}` did not come back after restart\n"
-                    f"**Original error:** {error_type} - {cause[:150]}\n"
-                    f"**New error:** {post_analysis['type']}\n"
-                    f"**Fix:** {post_analysis['fix']}"
+            logs_post = _obtener_logs(nombre, lineas=20)
+            analisis_post = _analizar_logs(logs_post)
+            actualizar_tarea(tarea["id"], FALLIDO,
+                resultado=f"Reinicio fallido — {analisis_post['tipo']}",
+                causa=causa, tipo_error=tipo_err, fix=analisis_post["fix"])
+            log_actividad("alert", f"❌ {nombre} no levantó tras reinicio", "Reparador")
+            if _dm_fn:
+                _dm_fn(
+                    f"🔴 **Jarvis** — `{nombre}` no levantó tras reinicio\n"
+                    f"**Error original:** {tipo_err} — {causa[:150]}\n"
+                    f"**Nuevo error:** {analisis_post['tipo']}\n"
+                    f"**Fix:** {analisis_post['fix']}"
                 )
     except subprocess.TimeoutExpired:
-        update_task(task["id"], FAILED, result="Timeout while restarting", cause=cause, error_type=error_type)
-        if _dm_sender:
-            _dm_sender(f"⚠️ **Jarvis** - Timeout while restarting `{name}`.")
-    except Exception as exc:
-        update_task(task["id"], FAILED, result=str(exc), cause=cause)
+        actualizar_tarea(tarea["id"], FALLIDO, resultado="Timeout al reiniciar", causa=causa, tipo_error=tipo_err)
+        if _dm_fn:
+            _dm_fn(f"⚠️ **Jarvis** — Timeout reiniciando `{nombre}`.")
+    except Exception as e:
+        actualizar_tarea(tarea["id"], FALLIDO, resultado=str(e), causa=causa)
 
 
-def _repair_disk(task: dict, disk_pct: float):
-    update_task(task["id"], IN_PROGRESS)
-    record_activity("auto", f"Disk at {disk_pct}% - cleaning up...", "Repair")
+def _reparar_disco(tarea: dict, disco_pct: float):
+    actualizar_tarea(tarea["id"], EN_CURSO)
+    log_actividad("auto", f"Disco al {disco_pct}% — limpiando...", "Reparador")
     try:
-        subprocess.run(
-            "docker image prune -f && docker container prune -f",
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        new_disk_pct = psutil.disk_usage("/").percent
-        if new_disk_pct < disk_pct:
-            message = f"Disk freed: {disk_pct}% -> {new_disk_pct}%"
-            update_task(task["id"], FIXED, result=message)
-            record_activity("ok", message, "Repair")
-            if _dm_sender:
-                _dm_sender(f"✅ **Jarvis** - {message}")
+        subprocess.run("docker image prune -f && docker container prune -f",
+            shell=True, capture_output=True, text=True, timeout=60)
+        disco_nuevo = psutil.disk_usage('/').percent
+        if disco_nuevo < disco_pct:
+            msg = f"Disco liberado: {disco_pct}% → {disco_nuevo}%"
+            actualizar_tarea(tarea["id"], REPARADO, resultado=msg)
+            log_actividad("ok", msg, "Reparador")
+            if _dm_fn:
+                _dm_fn(f"🔧 **Jarvis** — {msg} ✅")
         else:
-            update_task(
-                task["id"],
-                FAILED,
-                result=f"Cleanup was not enough - still at {new_disk_pct}%",
-                fix="Free space manually - inspect large directories with: `du -sh /* | sort -rh | head -10`",
-            )
-            if _dm_sender:
-                _dm_sender(
-                    f"⚠️ **Jarvis** - Disk at {new_disk_pct}% - automatic cleanup was not enough.\n"
-                    f"**Fix:** `du -sh /srv/* | sort -rh | head -10` to see what is taking the most space."
+            actualizar_tarea(tarea["id"], FALLIDO,
+                resultado=f"Limpieza insuficiente — sigue al {disco_nuevo}%",
+                fix="Liberá espacio manualmente — revisá directorios grandes con: `du -sh /* | sort -rh | head -10`")
+            if _dm_fn:
+                _dm_fn(
+                    f"⚠️ **Jarvis** — Disco al {disco_nuevo}% — limpieza automática no fue suficiente.\n"
+                    f"**Fix:** `du -sh /srv/* | sort -rh | head -10` para ver qué ocupa más."
                 )
-    except Exception as exc:
-        update_task(task["id"], FAILED, result=str(exc))
-
+    except Exception as e:
+        actualizar_tarea(tarea["id"], FALLIDO, resultado=str(e))

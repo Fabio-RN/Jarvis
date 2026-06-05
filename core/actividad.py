@@ -4,28 +4,28 @@ from datetime import datetime
 from core.config import ACTIVIDAD_LOG
 
 
-def record_activity(kind: str, text: str, badge: str = ""):
+def registrar(tipo: str, texto: str, badge: str = ""):
     """
-    kind: 'tool' | 'alert' | 'ok' | 'warn' | 'cmd' | 'auto'
+    tipo: 'tool' | 'alert' | 'ok' | 'warn' | 'cmd' | 'auto'
     """
-    entry = {
-        "type": kind,
-        "text": text,
+    entrada = {
+        "tipo": tipo,
+        "texto": texto,
         "badge": badge,
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "date": datetime.now().strftime("%d/%m/%Y"),
+        "hora": datetime.now().strftime("%H:%M:%S"),
+        "fecha": datetime.now().strftime("%d/%m/%Y")
     }
-    logs = load_activity()
-    logs.insert(0, entry)
-    with open(ACTIVIDAD_LOG, "w") as file_handle:
-        json.dump(logs[:200], file_handle, ensure_ascii=False)
+    logs = cargar()
+    logs.insert(0, entrada)
+    with open(ACTIVIDAD_LOG, "w") as f:
+        json.dump(logs[:200], f, ensure_ascii=False)
 
 
-def load_activity():
+def cargar():
     if os.path.exists(ACTIVIDAD_LOG):
-        with open(ACTIVIDAD_LOG) as file_handle:
+        with open(ACTIVIDAD_LOG) as f:
             try:
-                return json.load(file_handle)
-            except Exception:
+                return json.load(f)
+            except:
                 return []
     return []

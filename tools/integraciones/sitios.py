@@ -1,32 +1,30 @@
 """
-Integration with websites hosted on the server.
+Integración con sitios web hosteados en el servidor.
 
-- Automatically detects services running on known ports
-- Reads the day counter from its JSON endpoint (port 8082)
-- Exposes functions for the LLM and for Discord
+- Detecta automáticamente servicios corriendo en puertos conocidos
+- Lee el contador de días desde su endpoint JSON (puerto 8082)
+- Expone funciones para el LLM y para Discord
 """
 import subprocess
 import requests
 import json
 import os
-from dotenv import load_dotenv
-load_dotenv()
 from datetime import datetime, date
 
-# Known ports and their names
+# Puertos conocidos y sus nombres
 PUERTOS_CONOCIDOS = {
     80:   "Nginx (HTTP)",
     443:  "Nginx (HTTPS)",
     8080: "Filebrowser",
     8081: "qBittorrent",
-    8082: "Day Counter",
-    8083: "Custom Web",
-    8084: "Custom Web",
-    8085: "Custom Web",
-    8086: "Custom Web",
-    8087: "Custom Web",
-    8088: "Custom Web",
-    8089: "Custom Web",
+    8082: "Contador de días",
+    8083: "Web custom",
+    8084: "Web custom",
+    8085: "Web custom",
+    8086: "Web custom",
+    8087: "Web custom",
+    8088: "Web custom",
+    8089: "Web custom",
     8096: "Jellyfin",
     8123: "Home Assistant",
     8888: "Jarvis",
@@ -41,13 +39,13 @@ PUERTOS_CONOCIDOS = {
     9090: "Prometheus",
 }
 
-IP_LOCAL = os.getenv("IP_LOCAL", "{IP_LOCAL}")
+IP_LOCAL = "192.168.1.12"
 CONTADOR_URL = f"http://{IP_LOCAL}:8082/contadores.json"
 CONTADOR_HTML = f"http://{IP_LOCAL}:8082"
 
 
 def detectar_puertos_activos() -> list[dict]:
-    """Scan active ports on the server."""
+    """Escanea puertos activos en el servidor."""
     try:
         result = subprocess.run(
             "ss -tlnp | grep LISTEN | awk '{print $4}' | grep -oP ':\\K[0-9]+'",
@@ -62,7 +60,7 @@ def detectar_puertos_activos() -> list[dict]:
 
         sitios = []
         for puerto in sorted(puertos):
-            nombre = PUERTOS_CONOCIDOS.get(puerto, "Unknown service")
+            nombre = PUERTOS_CONOCIDOS.get(puerto, f"Servicio desconocido")
             sitios.append({
                 "puerto": puerto,
                 "nombre": nombre,
@@ -75,11 +73,11 @@ def detectar_puertos_activos() -> list[dict]:
 
 
 def get_sitios_resumen() -> str:
-    """Site summary for the LLM."""
+    """Resumen de sitios para el LLM."""
     sitios = detectar_puertos_activos()
     if not sitios:
-        return "No active web services were detected."
-    out = ["**Detected web services:**"]
+        return "No se detectaron servicios web activos."
+    out = ["**Servicios web detectados:**"]
     for s in sitios:
         if "error" in s:
             out.append(f"Error: {s['error']}")
@@ -89,13 +87,13 @@ def get_sitios_resumen() -> str:
 
 
 def listar_sitios_discord() -> str:
-    """Discord-friendly format."""
+    """Formato para Discord."""
     sitios = detectar_puertos_activos()
     if not sitios:
-        return "No active web services were detected."
+        return "No se detectaron servicios web activos."
     conocidos   = [s for s in sitios if s.get("conocido") and "error" not in s]
     desconocidos = [s for s in sitios if not s.get("conocido") and "error" not in s]
-    lineas = ["**🌐 Web services on the server:**\n```"]
+    lineas = ["**🌐 Servicios web en el servidor:**\n```"]
     for s in conocidos:
         lineas.append(f"  ✅ :{s['puerto']:5}  {s['nombre']}")
     if desconocidos:
@@ -106,12 +104,12 @@ def listar_sitios_discord() -> str:
     return "\n".join(lineas)
 
 
-# ── Day counter ───────────────────────────────────────────────────────
+# ── Contador de días ──────────────────────────────────────────────────
 
 def get_contadores() -> list[dict]:
     """
-    Read counters from the counter JSON endpoint.
-    If the endpoint does not exist, return an empty list.
+    Lee los contadores desde el endpoint JSON del contador.
+    Si no existe el endpoint, devuelve lista vacía.
     """
     try:
         r = requests.get(CONTADOR_URL, timeout=5)
@@ -123,7 +121,7 @@ def get_contadores() -> list[dict]:
 
 
 def _calcular_dias(fecha_str: str, tiempo_str: str = "00:00", incluir_finde: bool = True) -> dict:
-    """Calculate remaining/elapsed days from a date."""
+    """Calcula días restantes/pasados desde una fecha."""
     try:
         from datetime import timedelta
         h, m = map(int, (tiempo_str or "00:00").split(":"))
@@ -135,7 +133,7 @@ def _calcular_dias(fecha_str: str, tiempo_str: str = "00:00", incluir_finde: boo
         segundos = int(delta.total_seconds())
 
         if not incluir_finde and dias != 0:
-            # Count only business days
+            # Contar solo días hábiles
             d    = ahora.date()
             fin  = objetivo.date()
             paso = 1 if fin > d else -1
@@ -160,16 +158,16 @@ def _calcular_dias(fecha_str: str, tiempo_str: str = "00:00", incluir_finde: boo
 
 
 def get_contadores_resumen() -> str:
-    """Counter summary for Discord."""
+    """Resumen de contadores para Discord."""
     contadores = get_contadores()
     if not contadores:
         return (
-            f"📅 **Day Counter**\n"
-            f"Could not read the counter at `{CONTADOR_URL}`\n"
-            f"Check that the server is running on port 8082."
+            f"📅 **Contador de días**\n"
+            f"No se pudo leer el contador en `{CONTADOR_URL}`\n"
+            f"Verificá que el servidor esté corriendo en el puerto 8082."
         )
 
-    lineas = ["📅 **Day counters:**\n```"]
+    lineas = ["📅 **Contadores de días:**\n```"]
     for c in contadores:
         nombre = c.get("name", "?")
         emoji  = c.get("emoji", "📅")
@@ -179,27 +177,27 @@ def get_contadores_resumen() -> str:
         info   = _calcular_dias(fecha, tiempo, finde)
 
         if "error" in info:
-            lineas.append(f"  {emoji} {nombre}: error calculating")
+            lineas.append(f"  {emoji} {nombre}: error calculando")
             continue
 
         if info["hoy"]:
-            lineas.append(f"  {emoji} {nombre}: TODAY 🎉")
+            lineas.append(f"  {emoji} {nombre}: HOY 🎉")
         elif info["pasado"]:
-            lineas.append(f"  {emoji} {nombre}: {info['dias']} days ago")
+            lineas.append(f"  {emoji} {nombre}: hace {info['dias']} días")
         else:
-            lineas.append(f"  {emoji} {nombre}: {info['dias']} days remaining")
+            lineas.append(f"  {emoji} {nombre}: {info['dias']} días restantes")
 
     lineas.append(f"```\n🔗 {CONTADOR_HTML}")
     return "\n".join(lineas)
 
 
 def get_contadores_para_llm() -> str:
-    """Detailed format for the LLM."""
+    """Formato detallado para el LLM."""
     contadores = get_contadores()
     if not contadores:
-        return f"Could not access the day counter at {CONTADOR_URL}."
+        return f"No se pudo acceder al contador de días en {CONTADOR_URL}."
 
-    lineas = ["Configured day counters:"]
+    lineas = ["Contadores de días configurados:"]
     for c in contadores:
         nombre = c.get("name", "?")
         fecha  = c.get("date", "")
@@ -208,17 +206,17 @@ def get_contadores_para_llm() -> str:
         info   = _calcular_dias(fecha, tiempo, finde)
 
         if "error" in info:
-            lineas.append(f"- {nombre}: error calculating ({fecha})")
+            lineas.append(f"- {nombre}: error calculando ({fecha})")
             continue
 
         if info["hoy"]:
-            lineas.append(f"- {nombre} (date: {fecha}): TODAY")
+            lineas.append(f"- {nombre} (fecha: {fecha}): HOY")
         elif info["pasado"]:
-            lineas.append(f"- {nombre} (date: {fecha}): {info['dias']} days ago")
+            lineas.append(f"- {nombre} (fecha: {fecha}): hace {info['dias']} días")
         else:
             lineas.append(
-                f"- {nombre} (date: {fecha}): {info['dias']} days remaining "
-                f"({info['horas']}h {info['minutos']}m left)"
+                f"- {nombre} (fecha: {fecha}): faltan {info['dias']} días "
+                f"({info['horas']}h {info['minutos']}m restantes)"
             )
 
     return "\n".join(lineas)

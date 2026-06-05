@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-IP = os.getenv("IP", "{IP}")
+IP = os.getenv("IP", "192.168.1.12")
 
 # ── LLM ──────────────────────────────────────────────────────────────
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -35,4 +35,5 @@ ACTIVIDAD_LOG         = os.path.join(DATA_DIR, "actividad.json")
 TAREAS_FILE           = os.path.join(DATA_DIR, "tareas_reparacion.json")
 TOKENS_FILE           = os.path.join(DATA_DIR, "tokens.json")
 VIGILANTE_FILE        = os.path.join(DATA_DIR, "vigilante_config.json")
+REPARADOR_FILE        = os.path.join(DATA_DIR, "reparador_config.json")
 CONSOLA_PERMISOS_FILE = os.path.join(DATA_DIR, "consola_permisos.json")

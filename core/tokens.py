@@ -1,9 +1,9 @@
 """
-Persistent token counter with per-day history.
-- Stores the current day state in data/tokens.json
-- Stores the last 30 days in data/tokens_historial.json
-- Separates web vs discord tokens
-- Archives the previous day automatically when the date changes
+Contador de tokens persistente con historial por día.
+- Guarda en data/tokens.json (estado del día actual)
+- Guarda en data/tokens_historial.json (últimos 30 días)
+- Separa tokens de web vs discord
+- Al cambiar el día, archiva el día anterior automáticamente
 """
 import json
 import os
@@ -11,137 +11,146 @@ import threading
 from datetime import datetime, date
 from core.config import TOKENS_FILE
 
-_lock = threading.Lock()
-TOKEN_HISTORY_FILE = TOKENS_FILE.replace("tokens.json", "tokens_historial.json")
-MAX_HISTORY_DAYS = 30
+_lock          = threading.Lock()
+HISTORIAL_FILE = TOKENS_FILE.replace("tokens.json", "tokens_historial.json")
+MAX_DIAS       = 30  # máximo de días en el historial
 
 
-def _load_state() -> dict:
+def _cargar() -> dict:
     if os.path.exists(TOKENS_FILE):
-        with open(TOKENS_FILE) as file_handle:
+        with open(TOKENS_FILE) as f:
             try:
-                return json.load(file_handle)
-            except Exception:
+                return json.load(f)
+            except:
                 pass
-    return _initial_state()
+    return _estado_inicial()
 
 
-def _initial_state() -> dict:
+def _estado_inicial() -> dict:
     return {
-        "date": str(date.today()),
-        "web": 0,
-        "discord": 0,
-        "used": 0,
-        "limit": 200000,
-        "model": "openrouter/free",
-        "last_sync": None,
+        "fecha":       str(date.today()),
+        "web":         0,
+        "discord":     0,
+        "total":       0,
+        "limite":      200000,
+        "modelo":      "openrouter/free",
+        "ultima_sync": None,
     }
 
 
-def _save_state(state: dict):
+def _guardar(estado: dict):
     with _lock:
-        with open(TOKENS_FILE, "w") as file_handle:
-            json.dump(state, file_handle, ensure_ascii=False, indent=2)
+        with open(TOKENS_FILE, "w") as f:
+            json.dump(estado, f, ensure_ascii=False, indent=2)
 
 
-def _load_history() -> list:
-    if os.path.exists(TOKEN_HISTORY_FILE):
-        with open(TOKEN_HISTORY_FILE) as file_handle:
+def _archivar_dia(estado: dict):
+    """Guarda el estado del día en el historial antes de resetearlo."""
+    if estado.get("total", 0) == 0:
+        return  # no archivar días vacíos
+
+    historial = _cargar_historial()
+
+    entrada = {
+        "fecha":   estado.get("fecha", str(date.today())),
+        "web":     estado.get("web", 0),
+        "discord": estado.get("discord", 0),
+        "total":   estado.get("total", 0),
+        "modelo":  estado.get("modelo", "openrouter/free"),
+    }
+
+    # Evitar duplicados del mismo día
+    historial = [h for h in historial if h.get("fecha") != entrada["fecha"]]
+    historial.insert(0, entrada)
+
+    # Limitar tamaño
+    historial = historial[:MAX_DIAS]
+
+    with _lock:
+        with open(HISTORIAL_FILE, "w") as f:
+            json.dump(historial, f, ensure_ascii=False, indent=2)
+
+
+def _cargar_historial() -> list:
+    if os.path.exists(HISTORIAL_FILE):
+        with open(HISTORIAL_FILE) as f:
             try:
-                return json.load(file_handle)
-            except Exception:
+                return json.load(f)
+            except:
                 return []
     return []
 
 
-def _archive_day(state: dict):
-    """Store the current day state in history before resetting it."""
-    if state.get("used", 0) == 0:
-        return
+def agregar(tokens: int, origen: str = "web", modelo: str = None):
+    estado = _cargar()
 
-    history = _load_history()
-    entry = {
-        "date": state.get("date", str(date.today())),
-        "web": state.get("web", 0),
-        "discord": state.get("discord", 0),
-        "used": state.get("used", 0),
-        "model": state.get("model", "openrouter/free"),
-    }
+    # Si cambió el día → archivar el anterior y resetear
+    if estado.get("fecha") != str(date.today()):
+        _archivar_dia(estado)
+        estado = _estado_inicial()
 
-    history = [item for item in history if item.get("date") != entry["date"]]
-    history.insert(0, entry)
-    history = history[:MAX_HISTORY_DAYS]
+    if origen == "web":
+        estado["web"]     = estado.get("web", 0) + tokens
+    elif origen == "discord":
+        estado["discord"] = estado.get("discord", 0) + tokens
 
-    with _lock:
-        with open(TOKEN_HISTORY_FILE, "w") as file_handle:
-            json.dump(history, file_handle, ensure_ascii=False, indent=2)
+    estado["total"]       = estado.get("web", 0) + estado.get("discord", 0)
+    if modelo:
+        estado["modelo"]  = modelo
+    estado["ultima_sync"] = datetime.now().strftime("%H:%M:%S")
+    _guardar(estado)
 
 
-def add_usage(tokens: int, source: str = "web", model: str = None):
-    state = _load_state()
+def obtener() -> dict:
+    estado = _cargar()
 
-    if state.get("date") != str(date.today()):
-        _archive_day(state)
-        state = _initial_state()
+    if estado.get("fecha") != str(date.today()):
+        _archivar_dia(estado)
+        estado = _estado_inicial()
+        _guardar(estado)
 
-    if source == "web":
-        state["web"] = state.get("web", 0) + tokens
-    elif source == "discord":
-        state["discord"] = state.get("discord", 0) + tokens
-
-    state["used"] = state.get("web", 0) + state.get("discord", 0)
-    if model:
-        state["model"] = model
-    state["last_sync"] = datetime.now().strftime("%H:%M:%S")
-    _save_state(state)
-
-
-def get_usage() -> dict:
-    state = _load_state()
-
-    if state.get("date") != str(date.today()):
-        _archive_day(state)
-        state = _initial_state()
-        _save_state(state)
-
-    limit = state.get("limit", 200000)
-    used = state.get("used", 0)
     return {
-        "used": used,
-        "web": state.get("web", 0),
-        "discord": state.get("discord", 0),
-        "limit": limit,
-        "model": state.get("model", "openrouter/free"),
-        "date": state.get("date"),
-        "last_sync": state.get("last_sync"),
-        "pct": round((used / limit) * 100, 1),
+        "used":        estado.get("total", 0),
+        "web":         estado.get("web", 0),
+        "discord":     estado.get("discord", 0),
+        "total":       estado.get("limite", 200000),
+        "modelo":      estado.get("modelo", "openrouter/free"),
+        "fecha":       estado.get("fecha"),
+        "ultima_sync": estado.get("ultima_sync"),
+        "pct":         round((estado.get("total", 0) / estado.get("limite", 200000)) * 100, 1),
     }
 
 
-def get_usage_history() -> list:
-    """Return previous day history plus today's data."""
-    history = _load_history()
-    today = get_usage()
-    today_entry = {
-        "date": today["date"],
-        "web": today["web"],
-        "discord": today["discord"],
-        "used": today["used"],
-        "model": today["model"],
-        "is_today": True,
+def obtener_historial() -> list:
+    """Devuelve historial de días anteriores + hoy al final."""
+    historial = _cargar_historial()
+    hoy       = obtener()
+
+    # Incluir hoy si tiene actividad
+    entrada_hoy = {
+        "fecha":   hoy["fecha"],
+        "web":     hoy["web"],
+        "discord": hoy["discord"],
+        "total":   hoy["used"],
+        "modelo":  hoy["modelo"],
+        "es_hoy":  True,
     }
 
-    history = [item for item in history if item.get("date") != today["date"]]
-    if today["used"] > 0:
-        history.insert(0, today_entry)
-    return history
+    # Quitar hoy si ya estaba en historial (evitar duplicado)
+    historial = [h for h in historial if h.get("fecha") != hoy["fecha"]]
+
+    if hoy["used"] > 0:
+        historial.insert(0, entrada_hoy)
+
+    return historial
 
 
-def reset_usage():
-    _save_state(_initial_state())
+def resetear():
+    estado = _estado_inicial()
+    _guardar(estado)
 
 
-def set_model(model: str):
-    state = _load_state()
-    state["model"] = model
-    _save_state(state)
+def set_modelo(modelo: str):
+    estado = _cargar()
+    estado["modelo"] = modelo
+    _guardar(estado)

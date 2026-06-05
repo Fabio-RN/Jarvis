@@ -6,14 +6,14 @@ from datetime import datetime
 
 
 def get_system_info():
-    mem = psutil.virtual_memory()
-    disk = psutil.disk_usage('/')
-    net = psutil.net_io_counters()
-    info = (
+    mem   = psutil.virtual_memory()
+    disco = psutil.disk_usage('/')
+    net   = psutil.net_io_counters()
+    info  = (
         f"CPU: {psutil.cpu_percent()}% | "
         f"RAM: {mem.percent}% ({round(mem.used/1024**3,1)}GB/{round(mem.total/1024**3,1)}GB) | "
-        f"Disk: {disk.percent}% ({round(disk.free/1024**3,1)}GB free) | "
-        f"Network: ↑{round(net.bytes_sent/1024**2,1)}MB ↓{round(net.bytes_recv/1024**2,1)}MB"
+        f"Disco: {disco.percent}% ({round(disco.free/1024**3,1)}GB libre) | "
+        f"Red: ↑{round(net.bytes_sent/1024**2,1)}MB ↓{round(net.bytes_recv/1024**2,1)}MB"
     )
     try:
         temps = psutil.sensors_temperatures()
@@ -31,50 +31,50 @@ def get_containers():
             "docker ps -a --format '{{.Names}}|{{.Status}}'",
             shell=True, capture_output=True, text=True, timeout=10
         )
-        containers = []
-        for line in result.stdout.strip().split("\n"):
-            if "|" in line:
-                name, status = line.split("|", 1)
-                containers.append({
-                    "name": name.strip(),
-                    "status": "running" if status.startswith("Up") else "stopped",
+        contenedores = []
+        for linea in result.stdout.strip().split("\n"):
+            if "|" in linea:
+                nombre, estado = linea.split("|", 1)
+                contenedores.append({
+                    "nombre": nombre.strip(),
+                    "estado": "running" if estado.startswith("Up") else "stopped"
                 })
-        return containers
-    except Exception:
+        return contenedores
+    except:
         return []
 
 
-def run_command(cmd, source="chat"):
-    """Run a bash command and log the result."""
+def run_command(cmd, origen="chat"):
+    """Ejecuta un comando bash y loguea el resultado. Bug del return original corregido."""
     try:
         result = subprocess.run(
             cmd, shell=True, capture_output=True, text=True, timeout=15
         )
-        output = (result.stdout + result.stderr).strip() or "Command executed with no output."
+        output = (result.stdout + result.stderr).strip() or "Comando ejecutado sin salida."
     except Exception as e:
         output = f"Error: {str(e)}"
-    _log_command(cmd, source, output)
+    _log_comando(cmd, origen, output)
     return output
 
 
-def _log_command(cmd, source, output=""):
+def _log_comando(cmd, origen, output=""):
     from core.config import COMANDOS_LOG
-    entry = {
-        "command": cmd,
-        "source": source,
+    entrada = {
+        "comando": cmd,
+        "origen": origen,
         "output_preview": output[:100],
-        "time": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "hora": datetime.now().strftime("%H:%M:%S %d/%m/%Y")
     }
     logs = []
     if os.path.exists(COMANDOS_LOG):
-        with open(COMANDOS_LOG) as file_handle:
+        with open(COMANDOS_LOG) as f:
             try:
-                logs = json.load(file_handle)
-            except Exception:
+                logs = json.load(f)
+            except:
                 logs = []
-    logs.insert(0, entry)
-    with open(COMANDOS_LOG, "w") as file_handle:
-        json.dump(logs[:200], file_handle, ensure_ascii=False)
+    logs.insert(0, entrada)
+    with open(COMANDOS_LOG, "w") as f:
+        json.dump(logs[:200], f, ensure_ascii=False)
 
 
 def get_temp():

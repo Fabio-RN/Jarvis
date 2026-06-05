@@ -17,8 +17,8 @@ def docker_restart(nombre):
             shell=True, capture_output=True, text=True, timeout=30
         )
         if result.returncode == 0:
-            return f"✅ Container '{nombre}' restarted successfully."
-        return f"❌ Error restarting '{nombre}': {result.stderr.strip()}"
+            return f"✅ Contenedor '{nombre}' reiniciado correctamente."
+        return f"❌ Error reiniciando '{nombre}': {result.stderr.strip()}"
     except Exception as e:
         return f"Error: {e}"
 
@@ -27,7 +27,7 @@ def docker_compose_up():
     try:
         dirs = _compose_dirs()
         if not dirs:
-            return "No directories with docker-compose were found."
+            return "No se encontraron directorios con docker-compose."
         resultados = []
         for d in dirs:
             r = subprocess.run(
@@ -45,7 +45,7 @@ def docker_compose_down():
     try:
         dirs = _compose_dirs()
         if not dirs:
-            return "No directories with docker-compose were found."
+            return "No se encontraron directorios con docker-compose."
         resultados = []
         for d in dirs:
             r = subprocess.run(

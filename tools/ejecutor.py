@@ -42,16 +42,16 @@ def _despachar(nombre: str, args: dict) -> str:
         case "enviar_discord":
             if _discord_send:
                 _discord_send(args["mensaje"])
-                return "Message sent to the channel."
-            return "Discord unavailable."
+                return "Mensaje enviado al canal."
+            return "Discord no disponible."
         case "enviar_dm":
             if _discord_dm:
                 _discord_dm(args["mensaje"])
-                return "DM sent."
+                return "DM enviado."
             elif _discord_send:
                 _discord_send(args["mensaje"])
-                return "DM sent to the channel instead (DM not configured)."
-            return "Discord unavailable."
+                return "DM enviado como canal (DM no configurado)."
+            return "Discord no disponible."
         case "detectar_sitios":
             return get_sitios_resumen()
         case "get_contadores_dias":
@@ -91,20 +91,20 @@ def _despachar(nombre: str, args: dict) -> str:
         case "fb_listar_archivos":
             return fb_listar_archivos(args.get("ruta", "/"))
         case _:
-            return f"Tool '{nombre}' not recognized."
+            return f"Herramienta '{nombre}' no reconocida."
 
 
 def _categorizar_y_loguear(nombre, args, resultado):
     categorias = {
-        "ejecutar_comando":               ("cmd",  "Command"),
-        "info_sistema":                   ("tool", "System"),
+        "ejecutar_comando":               ("cmd",  "Comando"),
+        "info_sistema":                   ("tool", "Sistema"),
         "docker_restart":                 ("tool", "Docker"),
         "docker_compose_up":              ("ok",   "Docker"),
         "docker_compose_down":            ("warn", "Docker"),
         "enviar_discord":                 ("tool", "Discord"),
         "enviar_dm":                      ("tool", "Discord DM"),
-        "detectar_sitios":                ("tool", "Sites"),
-        "get_contadores_dias":            ("tool", "Counters"),
+        "detectar_sitios":                ("tool", "Sitios"),
+        "get_contadores_dias":            ("tool", "Contadores"),
         "jellyseerr_buscar":              ("tool", "Media"),
         "jellyseerr_requests_pendientes": ("tool", "Media"),
         "jellyseerr_aprobar":             ("ok",   "Media"),
@@ -112,9 +112,9 @@ def _categorizar_y_loguear(nombre, args, resultado):
         "radarr_estado":                  ("tool", "Media"),
         "sonarr_buscar":                  ("tool", "Media"),
         "sonarr_estado":                  ("tool", "Media"),
-        "qbit_estado":                    ("tool", "Downloads"),
-        "qbit_pausar":                    ("warn", "Downloads"),
-        "qbit_reanudar":                  ("ok",   "Downloads"),
+        "qbit_estado":                    ("tool", "Descargas"),
+        "qbit_pausar":                    ("warn", "Descargas"),
+        "qbit_reanudar":                  ("ok",   "Descargas"),
         "jellyfin_usuarios_conectados":   ("tool", "Jellyfin"),
         "jellyfin_estado_biblioteca":     ("tool", "Jellyfin"),
         "ha_estado_entidades":            ("tool", "Home Assistant"),
@@ -128,9 +128,9 @@ def _categorizar_y_loguear(nombre, args, resultado):
     if nombre == "ejecutar_comando":
         texto = f"$ {args.get('comando','')}"
     elif nombre == "docker_restart":
-        texto = f"Restart: {args.get('nombre','')}"
+        texto = f"Reinicio: {args.get('nombre','')}"
     elif nombre in ("enviar_discord", "enviar_dm"):
-        texto = f"Message: {args.get('mensaje','')[:60]}"
+        texto = f"Mensaje: {args.get('mensaje','')[:60]}"
     else:
         texto = f"{nombre}({', '.join(f'{k}={v}' for k,v in args.items())})"
 

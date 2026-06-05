@@ -1,24 +1,24 @@
 """
-LLM client with automatic fallback.
-Try models in order until one responds without rate limiting.
-Compatible with OpenRouter (same protocol as OpenAI/Groq).
+LLM Client con fallback automático.
+Intenta modelos en orden hasta que uno responda sin rate limit.
+Compatible con OpenRouter (mismo protocolo que OpenAI/Groq).
 """
 import time
 import os
 from openai import OpenAI
 from core.config import OPENROUTER_API_KEY
 
-# openrouter/free automatically selects a free model that supports
-# the needed functionality, including tool use, so it is the ideal fallback.
-# The others are specific models verified with tool use in 2026.
-FALLBACK_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct:free",  # best default, same one previously used in Groq
+# openrouter/free elige automáticamente un modelo gratuito que soporte
+# la funcionalidad que necesitás (incluyendo tool use) — es el fallback perfecto.
+# Los demás son modelos específicos verificados con tool use en 2026.
+MODELOS_FALLBACK = [
+    "meta-llama/llama-3.3-70b-instruct:free",  # el mejor, mismo que tenías en Groq
     "mistralai/devstral-small:free",  
-    "nvidia/llama-3.1-nemotron-nano-8b-v1:free",# NVIDIA, fast, supports tools
-    "openrouter/free",                          # wildcard - picks the best available
+    "nvidia/llama-3.1-nemotron-nano-8b-v1:free",# NVIDIA, rápido, soporta tools ✅
+    "openrouter/free",                          # comodín — elige el mejor disponible ✅
 ]
 
-MONITOR_MODEL = "nvidia/llama-3.1-nemotron-nano-8b-v1:free"  # lightweight model for monitoring
+MODELO_VIGILANTE = "nvidia/llama-3.1-nemotron-nano-8b-v1:free"  # ligero para el vigilante
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -30,18 +30,18 @@ client = OpenAI(
 )
 
 
-def chat_with_fallback(messages: list, tools: list = None, max_tokens: int = 1500, model_override: str = None) -> tuple:
+def chat_con_fallback(messages: list, tools: list = None, max_tokens: int = 1500, modelo_override: str = None) -> tuple:
     """
-    Try each model in order until one works.
-    Return (response_message, model_used, tokens_used)
+    Intenta cada modelo en orden hasta que uno funcione.
+    Devuelve (mensaje_response, modelo_usado, tokens_usados)
     """
-    models = [model_override] if model_override else FALLBACK_MODELS
+    modelos = [modelo_override] if modelo_override else MODELOS_FALLBACK
 
-    last_error = None
-    for model in models:
+    ultimo_error = None
+    for modelo in modelos:
         try:
             kwargs = {
-                "model":      model,
+                "model":      modelo,
                 "messages":   messages,
                 "max_tokens": max_tokens,
             }
@@ -49,21 +49,21 @@ def chat_with_fallback(messages: list, tools: list = None, max_tokens: int = 150
                 kwargs["tools"]       = tools
                 kwargs["tool_choice"] = "auto"
 
-            response = client.chat.completions.create(**kwargs)
-            tokens = response.usage.total_tokens if response.usage else 0
-            return response.choices[0].message, model, tokens
+            respuesta = client.chat.completions.create(**kwargs)
+            tokens    = respuesta.usage.total_tokens if respuesta.usage else 0
+            return respuesta.choices[0].message, modelo, tokens
 
         except Exception as e:
             err = str(e).lower()
             if any(x in err for x in ["rate limit", "429", "quota", "too many", "404", "no endpoints"]):
-                print(f"[LLM] {model} unavailable ({e}), trying next...")
-                last_error = e
+                print(f"[LLM] {modelo} no disponible ({e}), probando siguiente...")
+                ultimo_error = e
                 time.sleep(1)
                 continue
             else:
-                # Error other than rate limit - do not try more models
-                print(f"[LLM] Error in {model}: {e}")
+                # Error distinto a rate limit — no intentar más modelos
+                print(f"[LLM] Error en {modelo}: {e}")
                 raise
 
-    # All models failed due to rate limiting
-    raise Exception(f"All models are rate-limited. Last error: {last_error}")
+    # Todos fallaron por rate limit
+    raise Exception(f"Todos los modelos están en rate limit. Último error: {ultimo_error}")

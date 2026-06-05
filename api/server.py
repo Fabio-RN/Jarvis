@@ -1,76 +1,84 @@
 import time
 import threading
 import psutil
-from typing import Optional
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from typing import Optional
 
-from core.historial import load_history
-from core.sistema import get_containers, run_command, get_temp
-from core.actividad import load_activity
-from agente.loop import process_message
-from agente.reparador import get_task_summary
-from agente.vigilante import update_monitor_config, get_monitor_status, load_monitor_config
+# ── Registro de hilos — main.py llama register_hilo() al arrancar ────
+_hilos_registrados: dict = {}
+
+def register_hilo(nombre: str, hilo: threading.Thread):
+    """Llamar desde main.py tras crear cada hilo daemon."""
+    _hilos_registrados[nombre] = hilo
+
+from core.historial import cargar
+from core.sistema import get_system_info, get_containers, run_command, get_temp
+from core.actividad import cargar as cargar_actividad
+from core.config import DATA_DIR
+from agente.loop import procesar
+from agente.reparador import (
+    borrar_tarea,
+    cambiar_estado_tarea,
+    ignorar_fallidas,
+    limpiar_resueltas,
+    resumen_tareas,
+    IGNORADO,
+)
+from agente.vigilante import actualizar_config, get_estado as get_vigilante_estado
 import core.tokens as tokens_db
 from api.discord_bot import notificar_canal, notificar_dm
 from tools.ejecutor import set_discord_sender
-from api.consola import get_authorized_users, add_authorized_user, remove_authorized_user
-
-# Thread registry - main.py calls register_thread() on startup.
-_registered_threads: dict[str, threading.Thread] = {}
-
-
-def register_thread(name: str, thread: threading.Thread):
-    """Call from main.py after creating each daemon thread."""
-    _registered_threads[name] = thread
-
+from api.consola import get_usuarios_autorizados, agregar_usuario, quitar_usuario
 
 app = FastAPI()
-chat_history = load_history()
+historial = cargar()
 
 set_discord_sender(notificar_canal, notificar_dm)
 
+# ── Estado de red para calcular KB/s reales ───────────────────────────
 _net_prev = {"bytes_sent": 0, "bytes_recv": 0, "ts": time.time()}
 
 
-class ChatMessage(BaseModel):
-    text: str
+class Mensaje(BaseModel):
+    texto: str
 
-
-class MonitorConfig(BaseModel):
-    enabled: Optional[bool] = None
-    interval_seconds: Optional[int] = None
-    cpu_threshold: Optional[int] = None
-    ram_threshold: Optional[int] = None
-    disk_threshold: Optional[int] = None
-    temp_threshold: Optional[int] = None
-    daily_summary_hour: Optional[int] = None
-
+class VigilanteConfig(BaseModel):
+    activo:       Optional[bool] = None
+    intervalo:    Optional[int]  = None
+    cpu_umbral:   Optional[int]  = None
+    ram_umbral:   Optional[int]  = None
+    disco_umbral: Optional[int]  = None
+    temp_umbral:  Optional[int]  = None
+    resumen_hora: Optional[int]  = None
 
 class CmdRequest(BaseModel):
     cmd: str
     cwd: str = "/srv/nas"
 
-
-class PermissionIn(BaseModel):
+class PermisoIn(BaseModel):
     user_id: int
-    name: str = ""
+    nombre: str = ""
 
+
+# ── Chat ──────────────────────────────────────────────────────────────
 
 @app.post("/chat")
-def chat(message: ChatMessage):
-    global chat_history
-    reply, chat_history, _tokens = process_message(message.text, chat_history, source="web")
-    return {"reply": reply}
+def chat(msg: Mensaje):
+    global historial
+    respuesta, historial, tokens = procesar(msg.texto, historial, origen="web")
+    return {"respuesta": respuesta}
 
+
+# ── Stats con KB/s reales ─────────────────────────────────────────────
 
 @app.get("/stats")
 def stats():
     global _net_prev
-    net = psutil.net_io_counters()
-    now = time.time()
-    dt = max(now - _net_prev["ts"], 0.1)
+    net  = psutil.net_io_counters()
+    now  = time.time()
+    dt   = max(now - _net_prev["ts"], 0.1)
 
     sent_kbps = round((net.bytes_sent - _net_prev["bytes_sent"]) / 1024 / dt, 2)
     recv_kbps = round((net.bytes_recv - _net_prev["bytes_recv"]) / 1024 / dt, 2)
@@ -79,262 +87,288 @@ def stats():
 
     temp = get_temp()
     return {
-        "cpu": psutil.cpu_percent(),
-        "ram_pct": psutil.virtual_memory().percent,
-        "ram_used": round(psutil.virtual_memory().used / 1024**3, 1),
-        "ram_total": round(psutil.virtual_memory().total / 1024**3, 1),
-        "disk_pct": psutil.disk_usage("/").percent,
-        "disk_free": round(psutil.disk_usage("/").free / 1024**3, 1),
-        "temp": temp,
-        "sent_kbps": max(sent_kbps, 0),
-        "recv_kbps": max(recv_kbps, 0),
-        "containers": get_containers(),
+        "cpu":         psutil.cpu_percent(),
+        "ram_pct":     psutil.virtual_memory().percent,
+        "ram_used":    round(psutil.virtual_memory().used  / 1024**3, 1),
+        "ram_total":   round(psutil.virtual_memory().total / 1024**3, 1),
+        "disco_pct":   psutil.disk_usage('/').percent,
+        "disco_libre": round(psutil.disk_usage('/').free   / 1024**3, 1),
+        "temp":        temp,
+        "sent_kbps":   max(sent_kbps, 0),
+        "recv_kbps":   max(recv_kbps, 0),
+        "containers":  get_containers(),
     }
 
+
+# ── Health — estado real del sistema ─────────────────────────────────
 
 @app.get("/health")
 def health():
     """
-    Return detailed system state for the UI status indicator.
-    Levels: ok | warn | critical
+    Devuelve estado detallado del sistema para el indicador de la UI.
+    Niveles: ok | warn | critical
+
+    Umbrales:
+      - Crítico: CPU>=90, RAM>=90, disco>=90, temp>=85, hilo discord caído
+      - Warn:    CPU>=75, RAM>=80, disco>=80, temp>=70, contenedor caído,
+                 tareas fallidas, hilo agentes caído (reparador puede reiniciarse)
     """
-    critical_issues = []
-    warnings = []
+    problemas    = []
+    advertencias = []
 
-    thread_status = {}
-    for name, thread in _registered_threads.items():
-        is_alive = thread is not None and thread.is_alive()
-        thread_status[name] = "alive" if is_alive else "down"
-        if not is_alive:
-            if name == "discord":
-                critical_issues.append(f"Thread {name} is down")
+    # ── Hilos ──────────────────────────────────────────────────────────
+    # Solo discord es crítico si cae; agentes (vigilante+reparador) es warn
+    # porque el watchdog los reinicia y son menos críticos para la UI.
+    estado_hilos = {}
+    for nombre, hilo in _hilos_registrados.items():
+        vivo = hilo is not None and hilo.is_alive()
+        estado_hilos[nombre] = "vivo" if vivo else "caído"
+        if not vivo:
+            if nombre == "discord":
+                problemas.append(f"Hilo {nombre} caído")
             else:
-                warnings.append(f"Thread {name} is down (watchdog active)")
+                advertencias.append(f"Hilo {nombre} caído (watchdog activo)")
 
-    cpu = psutil.cpu_percent()
-    ram = psutil.virtual_memory().percent
-    disk = psutil.disk_usage("/").percent
+    # ── Recursos ───────────────────────────────────────────────────────
+    cpu  = psutil.cpu_percent()
+    ram  = psutil.virtual_memory().percent
+    disk = psutil.disk_usage('/').percent
     temp = get_temp()
 
-    if cpu >= 90:
-        critical_issues.append(f"CPU at {cpu}%")
-    elif cpu >= 75:
-        warnings.append(f"CPU at {cpu}%")
+    if cpu  >= 90: problemas.append(f"CPU al {cpu}%")
+    elif cpu >= 75: advertencias.append(f"CPU al {cpu}%")
 
-    if ram >= 90:
-        critical_issues.append(f"RAM at {ram}%")
-    elif ram >= 80:
-        warnings.append(f"RAM at {ram}%")
+    if ram  >= 90: problemas.append(f"RAM al {ram}%")
+    elif ram >= 80: advertencias.append(f"RAM al {ram}%")
 
-    if disk >= 90:
-        critical_issues.append(f"Disk at {disk}%")
-    elif disk >= 80:
-        warnings.append(f"Disk at {disk}%")
+    if disk >= 90: problemas.append(f"Disco al {disk}%")
+    elif disk >= 80: advertencias.append(f"Disco al {disk}%")
 
-    if temp and temp >= 85:
-        critical_issues.append(f"Temp {temp}C")
-    elif temp and temp >= 70:
-        warnings.append(f"Temp {temp}C")
+    if temp and temp >= 85: problemas.append(f"Temp {temp}°C")
+    elif temp and temp >= 70: advertencias.append(f"Temp {temp}°C")
 
-    containers = get_containers()
-    down_containers = [container["name"] for container in containers if container["status"] != "running"]
-    if len(down_containers) >= 5:
-        critical_issues.append(f"{len(down_containers)} containers are down")
-    elif down_containers:
-        warnings.append(f"{len(down_containers)} container(s) down: {', '.join(down_containers[:3])}")
+    # ── Contenedores ───────────────────────────────────────────────────
+    # Solo es crítico si hay 5+ caídos a la vez; menos es warn.
+    contenedores = get_containers()
+    caidos = [c["nombre"] for c in contenedores if c["estado"] != "running"]
+    if len(caidos) >= 5:
+        problemas.append(f"{len(caidos)} contenedores caídos")
+    elif caidos:
+        advertencias.append(f"{len(caidos)} contenedor(es) caído(s): {', '.join(caidos[:3])}")
 
+    # ── Reparador ──────────────────────────────────────────────────────
     try:
-        tasks = get_task_summary()
-        if (tasks.get("failed") or 0) > 0:
-            warnings.append(f"{tasks['failed']} failed task(s) in repair")
+        tareas = resumen_tareas()
+        if (tareas.get("fallidos") or 0) > 0:
+            advertencias.append(f"{tareas['fallidos']} tarea(s) fallida(s) en reparador")
     except Exception:
         pass
 
-    if critical_issues:
-        level = "critical"
-    elif warnings:
-        level = "warn"
+    if problemas:
+        nivel = "critical"
+    elif advertencias:
+        nivel = "warn"
     else:
-        level = "ok"
+        nivel = "ok"
 
     return {
-        "ok": level == "ok",
-        "level": level,
-        "critical_issues": critical_issues,
-        "warnings": warnings,
-        "threads": thread_status,
-        "resources": {"cpu": cpu, "ram": ram, "disk": disk, "temp": temp},
+        "ok":           nivel == "ok",
+        "nivel":        nivel,
+        "problemas":    problemas,
+        "advertencias": advertencias,
+        "hilos":        estado_hilos,
+        "recursos": {
+            "cpu": cpu, "ram": ram, "disco": disk, "temp": temp
+        }
     }
 
 
+# ── Consola web — ejecución directa ──────────────────────────────────
+
 @app.post("/cmd")
-def run_cmd(request: CmdRequest):
+def ejecutar_cmd(req: CmdRequest):
     """
-    Run a command in the given cwd.
-    `cd` is handled by returning the new cwd so the client can persist it.
+    Ejecuta un comando en el cwd dado.
+    cd se maneja devolviendo el nuevo cwd para que el cliente lo persista.
     """
-    cmd = request.cmd.strip()
-    cwd = request.cwd.strip() or "/srv/nas"
-    new_cwd = cwd
+    cmd  = req.cmd.strip()
+    cwd  = req.cwd.strip() or "/srv/nas"
+    nuevo_cwd = cwd
 
     if not cmd:
         return {"output": "", "cwd": cwd}
 
+    # Manejo de cd igual que la consola Discord
     if cmd.startswith("cd ") or cmd == "cd":
-        target = cmd[3:].strip() if cmd != "cd" else "/srv/nas"
-        if target == "-":
-            target = "/srv/nas"
+        destino = cmd[3:].strip() if cmd != "cd" else "/srv/nas"
+        if destino == "-":
+            destino = "/srv/nas"
         import os
-        if not target.startswith("/"):
-            target = os.path.normpath(os.path.join(cwd, target))
-        check = run_command(f'test -d "{target}" && echo OK || echo FAIL')
+        if not destino.startswith("/"):
+            destino = os.path.normpath(os.path.join(cwd, destino))
+        check = run_command(f'test -d "{destino}" && echo OK || echo FAIL')
         if "OK" in check:
-            new_cwd = target
-            output = ""
+            nuevo_cwd = destino
+            output    = ""
         else:
-            output = f"bash: cd: {target}: No such file or directory"
-        return {"output": output, "cwd": new_cwd}
+            output = f"bash: cd: {destino}: No such file or directory"
+        return {"output": output, "cwd": nuevo_cwd}
 
     output = run_command(f'cd "{cwd}" && {cmd}')
-    return {"output": output or "(no output)", "cwd": new_cwd}
+    return {"output": output or "(sin output)", "cwd": nuevo_cwd}
 
 
-@app.get("/history")
-def get_history():
-    return {"history": chat_history}
+# ── Historial ─────────────────────────────────────────────────────────
+
+@app.get("/historial")
+def ver_historial():
+    return {"historial": historial}
 
 
-@app.get("/logs/{container_name}")
-def logs(container_name: str):
-    return {"logs": run_command(f"docker logs --tail 100 {container_name}")}
+# ── Logs ──────────────────────────────────────────────────────────────
 
+@app.get("/logs/{contenedor}")
+def logs(contenedor: str):
+    return {"logs": run_command(f"docker logs --tail 100 {contenedor}")}
 
 @app.get("/logs/__jarvis__/{jarvis}")
 def jarvis_auto_logs(jarvis: str):
     return {"logs": run_command(f"journalctl -u {jarvis} --no-pager -n 100 2>&1")}
 
 
+# ── Tokens ────────────────────────────────────────────────────────────
+
 @app.get("/tokens")
 def tokens():
-    return tokens_db.get_usage()
-
+    return tokens_db.obtener()
 
 @app.post("/tokens/reset")
 def reset_tokens():
-    tokens_db.reset_usage()
-    return {"ok": True, "message": "Token counter reset."}
+    tokens_db.resetear()
+    return {"ok": True, "mensaje": "Contador de tokens reseteado."}
+
+@app.get("/tokens/historial")
+def tokens_historial():
+    return {"historial": tokens_db.obtener_historial()}
 
 
-@app.get("/tokens/history")
-def token_history():
-    history = tokens_db.get_usage_history()
-    return {"history": history}
+# ── Actividad / tareas / comandos ─────────────────────────────────────
 
+@app.get("/actividad")
+def ver_actividad():
+    return {"actividad": cargar_actividad()}
 
-@app.get("/activity")
-def get_activity():
-    activity = load_activity()
-    return {"activity": activity}
+@app.get("/tareas")
+def ver_tareas():
+    return resumen_tareas()
 
+@app.post("/tareas/{tarea_id}/ignorar")
+def ignorar_tarea_endpoint(tarea_id: int):
+    ok = cambiar_estado_tarea(tarea_id, IGNORADO, "Ignorada manualmente")
+    return {"ok": ok, "mensaje": "Tarea ignorada." if ok else "Tarea no encontrada."}
 
-@app.get("/tasks")
-def get_tasks():
-    return get_task_summary()
+@app.delete("/tareas/{tarea_id}")
+def borrar_tarea_endpoint(tarea_id: int):
+    ok = borrar_tarea(tarea_id)
+    return {"ok": ok, "mensaje": "Tarea borrada." if ok else "Tarea no encontrada."}
 
+@app.post("/tareas/ignorar-fallidas")
+def ignorar_fallidas_endpoint():
+    total = ignorar_fallidas()
+    return {"ok": True, "ignoradas": total, "mensaje": f"{total} tarea(s) fallida(s) ignorada(s)."}
 
-@app.get("/commands")
-def get_commands():
-    import json
-    import os
+@app.post("/tareas/limpiar-resueltas")
+def limpiar_resueltas_endpoint():
+    total = limpiar_resueltas()
+    return {"ok": True, "borradas": total, "mensaje": f"{total} tarea(s) resuelta(s)/ignorada(s) borrada(s)."}
+
+@app.get("/comandos")
+def ver_comandos():
+    import json, os
     from core.config import COMANDOS_LOG
-
     if os.path.exists(COMANDOS_LOG):
-        with open(COMANDOS_LOG) as file_handle:
-            commands = json.load(file_handle)
-            return {"commands": commands}
-    return {"commands": []}
+        with open(COMANDOS_LOG) as f:
+            return {"comandos": json.load(f)}
+    return {"comandos": []}
 
 
-@app.get("/monitor")
-def get_monitor():
-    return get_monitor_status()
+# ── Vigilante ─────────────────────────────────────────────────────────
+
+@app.get("/vigilante")
+def ver_vigilante():
+    return get_vigilante_estado()
+
+@app.post("/vigilante")
+def configurar_vigilante(config: VigilanteConfig):
+    cambios = {k: v for k, v in config.dict().items() if v is not None}
+    if not cambios:
+        return {"ok": False, "mensaje": "No se enviaron cambios."}
+    nueva_config = actualizar_config(cambios)
+    return {"ok": True, "config": nueva_config}
+
+@app.post("/vigilante/toggle")
+def toggle_vigilante():
+    from agente.vigilante import cargar_config
+    config       = cargar_config()
+    nuevo        = not config.get("activo", True)
+    nueva_config = actualizar_config({"activo": nuevo})
+    estado       = "activado" if nuevo else "pausado"
+    return {"ok": True, "activo": nuevo, "mensaje": f"Vigilante {estado}."}
 
 
-@app.post("/monitor")
-def configure_monitor(config: MonitorConfig):
-    changes = {key: value for key, value in config.dict().items() if value is not None}
-    if not changes:
-        return {"ok": False, "message": "No changes were sent."}
-    new_config = update_monitor_config(changes)
-    return {"ok": True, "config": new_config}
+# ── Docker ────────────────────────────────────────────────────────────
 
-
-@app.post("/monitor/toggle")
-def toggle_monitor():
-    config = load_monitor_config()
-    enabled = not config.get("enabled", True)
-    update_monitor_config({"enabled": enabled})
-    state_label = "enabled" if enabled else "paused"
-    return {"ok": True, "enabled": enabled, "message": f"Monitor {state_label}."}
-
-
-@app.post("/docker/restart/{name}")
-def docker_restart_endpoint(name: str):
+@app.post("/docker/restart/{nombre}")
+def docker_restart_endpoint(nombre: str):
     from tools.integraciones.docker import docker_restart
-
-    result = docker_restart(name)
-    return {"ok": "✅" in result, "message": result}
-
+    resultado = docker_restart(nombre)
+    return {"ok": "✅" in resultado, "mensaje": resultado}
 
 @app.post("/docker/up")
 def docker_up():
     from tools.integraciones.docker import docker_compose_up
-
-    result = docker_compose_up()
-    return {"ok": True, "message": result}
-
+    return {"ok": True, "mensaje": docker_compose_up()}
 
 @app.post("/docker/down")
 def docker_down():
     from tools.integraciones.docker import docker_compose_down
-
-    result = docker_compose_down()
-    return {"ok": True, "message": result}
+    return {"ok": True, "mensaje": docker_compose_down()}
 
 
-@app.post("/system/{action}")
-def system_action(action: str):
+# ── Sistema ───────────────────────────────────────────────────────────
+
+@app.post("/sistema/{accion}")
+def sistema(accion: str):
     import subprocess
-
-    if action == "reiniciar":
+    if accion == "reiniciar":
         subprocess.Popen(["sudo", "reboot"])
-        return {"ok": True, "message": "Restarting server..."}
-    if action == "apagar":
+        return {"ok": True, "mensaje": "Reiniciando servidor..."}
+    elif accion == "apagar":
         subprocess.Popen(["sudo", "poweroff"])
-        return {"ok": True, "message": "Shutting down server..."}
-    return {"ok": False, "message": "Invalid action"}
+        return {"ok": True, "mensaje": "Apagando servidor..."}
+    return {"ok": False, "mensaje": "Acción no válida"}
 
 
-@app.get("/console/permissions")
-def get_console_permissions():
-    users = get_authorized_users()
-    return {"users": users}
+# ── Consola permisos ──────────────────────────────────────────────────
 
+@app.get("/consola/permisos")
+def consola_permisos_get():
+    return {"usuarios": get_usuarios_autorizados()}
 
-@app.post("/console/permissions")
-def add_console_permission(data: PermissionIn):
-    ok = add_authorized_user(data.user_id, data.name)
+@app.post("/consola/permisos")
+def consola_permisos_add(data: PermisoIn):
+    ok = agregar_usuario(data.user_id, data.nombre)
     if ok:
-        return {"ok": True, "message": f"User {data.user_id} added"}
-    return {"ok": False, "message": "The user already exists"}
+        return {"ok": True, "mensaje": f"Usuario {data.user_id} agregado"}
+    return {"ok": False, "mensaje": "El usuario ya existe"}
 
-
-@app.delete("/console/permissions/{user_id}")
-def remove_console_permission(user_id: int):
-    ok = remove_authorized_user(user_id)
+@app.delete("/consola/permisos/{user_id}")
+def consola_permisos_remove(user_id: int):
+    ok = quitar_usuario(user_id)
     if ok:
-        return {"ok": True, "message": f"User {user_id} removed"}
-    return {"ok": False, "message": "User not found"}
+        return {"ok": True, "mensaje": f"Usuario {user_id} removido"}
+    return {"ok": False, "mensaje": "Usuario no encontrado"}
 
 
+# ── Static (debe ir al final) ─────────────────────────────────────────
 app.mount("/", StaticFiles(directory="/srv/nas/assistant/web", html=True), name="static")

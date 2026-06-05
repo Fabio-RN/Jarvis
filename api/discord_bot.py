@@ -2,211 +2,211 @@ import discord
 import asyncio
 import core.tokens as tokens_db
 from core.config import DISCORD_TOKEN, DISCORD_CANAL_ID, DISCORD_DM_ID
-from core.historial import load_history
-from agente.loop import process_message
-from api.consola import handle_console
+from core.historial import cargar
+from agente.loop import procesar
+from api.consola import manejar_consola
 
 intents = discord.Intents.default()
 intents.message_content = True
 bot = discord.Client(intents=intents)
 
-discord_history = load_history("discord")
-dm_history = load_history("dm")
-_loop_ref = None
-_pending_channel = []
-_pending_dm = []
+historial_discord = cargar("discord")
+historial_dm      = cargar("dm")
+_loop_ref         = None
+_pending_canal    = []
+_pending_dm       = []
 
 
-# ── Public API ────────────────────────────────────────────────────────
+# ── API pública ───────────────────────────────────────────────────────
 
-def notificar_canal(message: str):
+def notificar_canal(mensaje: str):
     if _loop_ref and not _loop_ref.is_closed():
-        asyncio.run_coroutine_threadsafe(_send_channel(message), _loop_ref)
+        asyncio.run_coroutine_threadsafe(_enviar_canal(mensaje), _loop_ref)
     else:
-        _pending_channel.append(message)
+        _pending_canal.append(mensaje)
 
 
-def notificar_dm(message: str):
+def notificar_dm(mensaje: str):
     if _loop_ref and not _loop_ref.is_closed():
-        asyncio.run_coroutine_threadsafe(_send_dm(message), _loop_ref)
+        asyncio.run_coroutine_threadsafe(_enviar_dm(mensaje), _loop_ref)
     else:
-        _pending_dm.append(message)
+        _pending_dm.append(mensaje)
 
 
 notificar = notificar_canal
 
 
-# ── Internals ─────────────────────────────────────────────────────────
+# ── Internos ──────────────────────────────────────────────────────────
 
-async def _send_channel(message: str):
-    channel = bot.get_channel(DISCORD_CANAL_ID)
-    if channel:
-        for chunk in _chunks(message, 2000):
-            await channel.send(chunk)
+async def _enviar_canal(mensaje: str):
+    canal = bot.get_channel(DISCORD_CANAL_ID)
+    if canal:
+        for chunk in _chunks(mensaje, 2000):
+            await canal.send(chunk)
 
 
-async def _send_dm(message: str):
+async def _enviar_dm(mensaje: str):
     if not DISCORD_DM_ID:
-        await _send_channel(message)
+        await _enviar_canal(mensaje)
         return
     try:
-        user = await bot.fetch_user(DISCORD_DM_ID)
-        if user:
-            for chunk in _chunks(message, 2000):
-                await user.send(chunk)
+        usuario = await bot.fetch_user(DISCORD_DM_ID)
+        if usuario:
+            for chunk in _chunks(mensaje, 2000):
+                await usuario.send(chunk)
     except Exception as e:
         print(f"[Discord] Error DM: {e}")
-        await _send_channel(message)
+        await _enviar_canal(mensaje)
 
 
-def _chunks(text, n):
-    return [text[i:i+n] for i in range(0, len(text), n)]
+def _chunks(texto, n):
+    return [texto[i:i+n] for i in range(0, len(texto), n)]
 
 
-# ── Events ────────────────────────────────────────────────────────────
+# ── Eventos ───────────────────────────────────────────────────────────
 
 @bot.event
 async def on_ready():
     global _loop_ref
     _loop_ref = asyncio.get_event_loop()
-    print(f"[Discord] Bot connected as {bot.user}")
-    for msg in _pending_channel:
-        await _send_channel(msg)
+    print(f"[Discord] ✅ Bot conectado como {bot.user}")
+    for msg in _pending_canal:
+        await _enviar_canal(msg)
     for msg in _pending_dm:
-        await _send_dm(msg)
-    _pending_channel.clear()
+        await _enviar_dm(msg)
+    _pending_canal.clear()
     _pending_dm.clear()
 
 
 @bot.event
 async def on_message(message):
-    global discord_history, dm_history
+    global historial_discord, historial_dm
 
     if message.author == bot.user:
         return
 
-    is_dm = isinstance(message.channel, discord.DMChannel)
-    is_channel = (not is_dm) and (message.channel.id == DISCORD_CANAL_ID)
+    es_dm    = isinstance(message.channel, discord.DMChannel)
+    es_canal = (not es_dm) and (message.channel.id == DISCORD_CANAL_ID)
 
-    if not is_dm and not is_channel:
+    if not es_dm and not es_canal:
         return
 
-    text = message.content.strip()
-    if not text:
+    texto = message.content.strip()
+    if not texto:
         return
 
     # ── DMs ───────────────────────────────────────────────────────────
-    if is_dm:
+    if es_dm:
         if message.author.id != DISCORD_DM_ID:
-            await message.channel.send("I am not allowed to answer DMs from other users.")
+            await message.channel.send("No tengo permiso para responder DMs de otros usuarios.")
             return
 
         async with message.channel.typing():
-            reply, dm_history, tokens = process_message(text, dm_history, source="dm")
-        tokens_db.add_usage(tokens, source="discord")
-        for chunk in _chunks(reply, 2000):
+            respuesta, historial_dm, tokens = procesar(texto, historial_dm, origen="dm")
+        tokens_db.agregar(tokens, origen="discord")
+        for chunk in _chunks(respuesta, 2000):
             await message.channel.send(chunk)
         return
 
     # ── Canal del servidor ────────────────────────────────────────────
 
-    handled = await handle_console(message, bot)
-    if handled:
+    manejado = await manejar_consola(message, bot)
+    if manejado:
         return
 
-    if text == "!ayuda":
+    if texto == "!ayuda":
         await message.channel.send(
-            "**⚡ Jarvis — Available commands**\n"
+            "**⚡ Jarvis — Comandos disponibles**\n"
             "```\n"
-            "── Information ─────────────────────\n"
-            "!stats        — system status\n"
-            "!containers   — container status\n"
-            "!actividad    — latest Jarvis actions\n"
-            "!resumen      — full summary\n"
-            "!sitios       — detected websites\n"
-            "!contadores   — view day counters\n"
+            "── Información ─────────────────────\n"
+            "!stats        — estado del sistema\n"
+            "!containers   — estado de contenedores\n"
+            "!actividad    — últimas acciones de Jarvis\n"
+            "!resumen      — resumen completo\n"
+            "!sitios       — sitios web detectados\n"
+            "!contadores   — ver contadores de días\n"
             "\n"
             "── Docker ───────────────────────────\n"
-            "!up           — start all services\n"
-            "!down         — stop all services\n"
+            "!up           — levantar todos los servicios\n"
+            "!down         — bajar todos los servicios\n"
             "\n"
-            "── SSH Console ──────────────────────\n"
-            "!console      — open interactive session\n"
-            "!cmd <cmd>    — run direct command\n"
-            "!logs <name>  — container logs\n"
-            "!cat <file>   — view file contents\n"
+            "── Consola SSH ──────────────────────\n"
+            "!console      — abrir sesión interactiva\n"
+            "!cmd <cmd>    — ejecutar comando directo\n"
+            "!logs <nombre>— logs de un contenedor\n"
+            "!cat <archivo>— ver contenido de archivo\n"
             "!ps / !df / !mem / !ports / !uptime\n"
-            "!history      — session history\n"
-            "!exit         — close session\n"
-            "!help         — console help\n"
+            "!history      — historial de sesión\n"
+            "!exit         — cerrar sesión\n"
+            "!help         — ayuda consola\n"
             "\n"
-            "── Or just tell me what you need 💬 ──\n"
+            "── O escribime lo que necesitás 💬 ──\n"
             "```"
         )
         return
 
-    if text == "!stats":
+    if texto == "!stats":
         from core.sistema import get_system_info
         await message.channel.send(f"```\n{get_system_info()}\n```")
         return
 
-    if text == "!containers":
+    if texto == "!containers":
         from core.sistema import get_containers
-        containers = get_containers()
-        lines = [f"{'✅' if container['status']=='running' else '❌'} {container['name']}" for container in containers]
-        await message.channel.send("```\n" + "\n".join(lines) + "\n```")
+        cs = get_containers()
+        lineas = [f"{'✅' if c['estado']=='running' else '❌'} {c['nombre']}" for c in cs]
+        await message.channel.send("```\n" + "\n".join(lineas) + "\n```")
         return
 
-    if text == "!up":
+    if texto == "!up":
         from tools.integraciones.docker import docker_compose_up
         async with message.channel.typing():
-            result = docker_compose_up()
-        await message.channel.send(result)
+            resultado = docker_compose_up()
+        await message.channel.send(resultado)
         return
 
-    if text == "!down":
+    if texto == "!down":
         from tools.integraciones.docker import docker_compose_down
         async with message.channel.typing():
-            result = docker_compose_down()
-        await message.channel.send(result)
+            resultado = docker_compose_down()
+        await message.channel.send(resultado)
         return
 
-    if text == "!actividad":
-        from core.actividad import load_activity
-        logs = load_activity()[:10]
+    if texto == "!actividad":
+        from core.actividad import cargar as cargar_actividad
+        logs = cargar_actividad()[:10]
         if not logs:
-            await message.channel.send("No activity recorded yet.")
+            await message.channel.send("Sin actividad registrada aún.")
             return
-        lines = [f"`{entry['time']}` [{entry['badge']}] {entry['text']}" for entry in logs]
-        await message.channel.send("**⚡ Latest Jarvis actions:**\n" + "\n".join(lines))
+        lineas = [f"`{a['hora']}` [{a['badge']}] {a['texto']}" for a in logs]
+        await message.channel.send("**⚡ Últimas acciones de Jarvis:**\n" + "\n".join(lineas))
         return
 
-    if text == "!resumen":
+    if texto == "!resumen":
         async with message.channel.typing():
-            reply, discord_history, tokens = process_message(
-                "Give me a full summary of the server status: CPU, RAM, disk, temperature, containers, and active torrents.",
-                discord_history, source="discord"
+            respuesta, historial_discord, tokens = procesar(
+                "Dame un resumen completo del estado del servidor: CPU, RAM, disco, temperatura, contenedores y torrents activos.",
+                historial_discord, origen="discord"
             )
-        tokens_db.add_usage(tokens, source="discord")
-        await message.channel.send(reply[:2000])
+        tokens_db.agregar(tokens, origen="discord")
+        await message.channel.send(respuesta[:2000])
         return
 
-    if text == "!sitios":
+    if texto == "!sitios":
         from tools.integraciones.sitios import listar_sitios_discord
         await message.channel.send(listar_sitios_discord())
         return
 
-    if text == "!contadores":
+    if texto == "!contadores":
         from tools.integraciones.sitios import get_contadores_resumen
         await message.channel.send(get_contadores_resumen())
         return
 
-    # Any other message → Jarvis
+    # Cualquier otro mensaje → Jarvis
     async with message.channel.typing():
-        reply, discord_history, tokens = process_message(text, discord_history, source="discord")
-    # Also store tokens used in the channel
-    tokens_db.add_usage(tokens, source="discord")
-    await message.channel.send(reply[:2000])
+        respuesta, historial_discord, tokens = procesar(texto, historial_discord, origen="discord")
+    # FIX: guardar tokens del canal también
+    tokens_db.agregar(tokens, origen="discord")
+    await message.channel.send(respuesta[:2000])
 
 
 def run_bot():

@@ -8,7 +8,7 @@ def n8n_listar_workflows():
             auth=(N8N_USER, N8N_PASS), timeout=10)
         workflows = r.json().get("data", [])
         if not workflows:
-            return "No workflows found."
+            return "No hay workflows."
         out = []
         for w in workflows:
             activo = "✅" if w.get("active") else "⏸️"
@@ -21,7 +21,7 @@ def n8n_listar_workflows():
 def n8n_ejecutar_webhook(webhook_url):
     try:
         r = requests.post(webhook_url, timeout=10)
-        return f"Webhook executed. Status: {r.status_code}"
+        return f"Webhook ejecutado. Status: {r.status_code}"
     except Exception as e:
         return f"Error n8n: {e}"
 
@@ -35,7 +35,7 @@ def fb_listar_archivos(ruta="/"):
             headers={"X-Auth": token}, timeout=10)
         items = r2.json().get("items", [])
         if not items:
-            return f"There are no files in {ruta}."
+            return f"No hay archivos en {ruta}."
         out = []
         for item in items[:15]:
             tipo = "📁" if item.get("isDir") else "📄"

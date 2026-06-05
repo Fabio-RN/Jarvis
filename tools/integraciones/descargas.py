@@ -14,7 +14,7 @@ def qbit_estado():
         session = _login()
         torrents = session.get(f"{QBIT_URL}/api/v2/torrents/info", timeout=10).json()
         if not torrents:
-            return "No active torrents."
+            return "No hay torrents activos."
         out = []
         for t in torrents[:10]:
             progreso = round(t.get("progress", 0) * 100, 1)
@@ -31,8 +31,8 @@ def qbit_pausar(nombre):
         for t in torrents:
             if nombre.lower() in t.get("name", "").lower():
                 session.post(f"{QBIT_URL}/api/v2/torrents/pause", data={"hashes": t["hash"]})
-                return f"Torrent '{t['name']}' paused."
-        return "Torrent not found."
+                return f"Torrent '{t['name']}' pausado."
+        return "No se encontró el torrent."
     except Exception as e:
         return f"Error qBit: {e}"
 
@@ -44,7 +44,7 @@ def qbit_reanudar(nombre):
         for t in torrents:
             if nombre.lower() in t.get("name", "").lower():
                 session.post(f"{QBIT_URL}/api/v2/torrents/resume", data={"hashes": t["hash"]})
-                return f"Torrent '{t['name']}' resumed."
-        return "Torrent not found."
+                return f"Torrent '{t['name']}' reanudado."
+        return "No se encontró el torrent."
     except Exception as e:
         return f"Error qBit: {e}"
