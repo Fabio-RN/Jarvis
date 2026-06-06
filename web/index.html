@@ -32,7 +32,7 @@
         .stat-label { color:#8b949e; font-size:12px; margin-top:5px; }
         .chart-container { position:relative; height:120px; margin-top:10px; }
         .containers-list { display:flex; flex-direction:column; gap:8px; }
-        .container-item { display:flex; justify-content:space-between; align-items:center; padding:8px; background:#0d1117; border-radius:6px; font-size:13px; }
+        .container-item { display:flex; justify-content:space-between; align-items:center; padding:8px; background:#000000; border:1px solid #21262d; border-radius:6px; font-size:13px; }
         .badge { padding:3px 8px; border-radius:4px; font-size:11px; }
         .badge.running { background:#1a4a1a; color:#3fb950; }
         .badge.stopped { background:#3d1f1f; color:#f85149; }
@@ -72,7 +72,7 @@
         .ia-stat-card.red .value { color:#f85149; }
         .token-bar-big { background:#21262d; border-radius:6px; height:8px; margin-top:8px; overflow:hidden; }
         .token-bar-big-fill { height:8px; border-radius:6px; background:#58a6ff; transition:width 0.5s; }
-        .seccion-titulo { color:#58a6ff; font-size:13px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+        .seccion-titulo { color:#58a6ff; font-size:13px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #21262d; display:flex; align-items:center; gap:8px; }
         .seccion-titulo span { flex:1; }
         .seccion-titulo button { font-size:11px; padding:4px 10px; background:#21262d; border:1px solid #494949; color:#8b949e; cursor:pointer; font-family:monospace; border-radius:4px; }
         .seccion-titulo button:hover { background:#494949; color:#e6edf3; }
@@ -86,7 +86,7 @@
         .progreso-bar-fill { height:6px; border-radius:4px; transition:width 0.5s; }
         .progreso-valor { color:#e6edf3; min-width:30px; text-align:right; }
         .actividad-lista { display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto; }
-        .actividad-item { display:flex; align-items:flex-start; gap:10px; padding:8px 12px; background:#0d1117; border-radius:6px; border-left:3px solid #494949; font-size:12px; }
+        .actividad-item { display:flex; align-items:flex-start; gap:10px; padding:8px 12px; background:#000000; border:1px solid #21262d; border-left:3px solid #494949; border-radius:6px; font-size:12px; }
         .actividad-item.tool  { border-left-color:#58a6ff; }
         .actividad-item.alert { border-left-color:#f85149; }
         .actividad-item.ok    { border-left-color:#3fb950; }
@@ -97,24 +97,24 @@
         .act-texto  { flex:1; color:#e6edf3; }
         .act-badge  { font-size:10px; padding:2px 6px; border-radius:3px; background:#21262d; color:#8b949e; white-space:nowrap; }
         .alertas-lista { display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; }
-        .alerta-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:6px; font-size:12px; }
+        .alerta-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:1px solid #21262d; border-radius:6px; font-size:12px; }
         .alerta-item.critica     { background:#3d1f1f; border:1px solid #f85149; color:#f85149; }
         .alerta-item.advertencia { background:#3d2f00; border:1px solid #d29922; color:#d29922; }
         .alerta-item-tiempo { font-size:10px; opacity:0.7; }
         .cmds-lista { display:flex; flex-direction:column; gap:5px; max-height:280px; overflow-y:auto; }
-        .cmd-item { background:#0d1117; border:1px solid #21262d; border-radius:6px; padding:8px 12px; font-size:12px; }
+        .cmd-item { background:#000000; border:1px solid #21262d; border-radius:6px; padding:8px 12px; font-size:12px; }
         .cmd-item .cmd-text { color:#bc8cff; font-family:monospace; margin-bottom:3px; word-break:break-all; }
         .cmd-item .cmd-meta { color:#8b949e; font-size:10px; display:flex; justify-content:space-between; }
         .empty-state { color:#8b949e; font-size:13px; text-align:center; padding:25px; }
-        .tareas-resumen { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
-        .tarea-stat { background:#0d1117; border-radius:6px; padding:10px; text-align:center; }
+        .tareas-resumen { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+        .tarea-stat { background:#000000; border:1px solid #21262d; border-radius:6px; padding:10px; text-align:center; }
         .tarea-stat .ts-num   { font-size:20px; font-weight:bold; margin-bottom:2px; }
         .tarea-stat .ts-label { font-size:10px; color:#8b949e; text-transform:uppercase; }
         .tarea-stat.pendiente .ts-num { color:#d29922; }
         .tarea-stat.en-curso  .ts-num { color:#58a6ff; }
         .tarea-stat.reparado  .ts-num { color:#3fb950; }
         .tarea-stat.fallido   .ts-num { color:#f85149; }
-        .tarea-item { background:#0d1117; border-radius:6px; padding:10px 12px; margin-bottom:7px; border-left:3px solid #494949; font-size:12px; }
+        .tarea-item { background:#000000; border:1px solid #21262d; border-left:3px solid #494949; border-radius:6px; padding:10px 12px; margin-bottom:7px; font-size:12px; }
         .tarea-item.pendiente { border-left-color:#d29922; }
         .tarea-item.en_curso  { border-left-color:#58a6ff; }
         .tarea-item.reparado  { border-left-color:#3fb950; }
@@ -194,7 +194,7 @@
         .tt-btn.green:hover { background:#1a4a1a; }
 
         /* ── Consola ── */
-        #panel-consola { background:#0d1117; }
+        #panel-consola { background:#000000; }
         .consola-wrap { display:flex; flex-direction:column; height:100%; gap:0; }
         .consola-toolbar {
             display:flex; align-items:center; gap:8px; padding:10px 16px;
@@ -202,7 +202,7 @@
         }
         .consola-toolbar span { font-size:12px; color:#8b949e; }
         .shortcut-btn {
-            background:#0d1117; border:1px solid #494949; color:#8b949e;
+            background:#000000; border:1px solid #494949; color:#8b949e;
             padding:4px 10px; border-radius:4px; font-size:11px; font-family:monospace;
             cursor:pointer; transition:all 0.15s;
         }
@@ -210,7 +210,7 @@
         #consola-output {
             flex:1; overflow-y:auto; padding:16px;
             font-family:monospace; font-size:13px; line-height:1.6;
-            color:#c9d1d9; background:#0d1117;
+            color:#c9d1d9; background:#000000;
             min-height:0;
         }
         .consola-line { margin-bottom:2px; white-space:pre-wrap; word-break:break-all; }
@@ -245,7 +245,7 @@
         .consola-danger-box h3 { color:#f85149; margin-bottom:10px; }
         .consola-danger-box p  { color:#8b949e; font-size:13px; margin-bottom:18px; }
         .consola-danger-box code {
-            display:block; background:#0d1117; border:1px solid #494949;
+            display:block; background:#000000; border:1px solid #494949;
             border-radius:4px; padding:8px 12px; color:#bc8cff;
             font-size:12px; margin-bottom:18px; text-align:left; word-break:break-all;
         }
@@ -320,8 +320,8 @@
             <div class="card">
                 <h3>📋 Logs en tiempo real</h3>
                 <div style="margin:12px 0 8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-                    <select id="log-select" style="background:#0d1117;color:#e6edf3;border:1px solid #494949;padding:8px;border-radius:6px;font-family:monospace;min-width:160px;"></select>
-                    <input id="log-custom" type="text" placeholder="Servicio custom..." style="background:#0d1117;color:#e6edf3;border:1px solid #494949;padding:8px;border-radius:6px;font-family:monospace;width:160px;" title="Nombre de contenedor o servicio personalizado">
+                    <select id="log-select" style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:8px;border-radius:6px;font-family:monospace;min-width:160px;"></select>
+                    <input id="log-custom" type="text" placeholder="Servicio custom..." style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:8px;border-radius:6px;font-family:monospace;width:160px;" title="Nombre de contenedor o servicio personalizado">
                     <button onclick="cargarLogs()">↺ Actualizar</button>
                     <button onclick="limpiarLogsPanel()" class="btn-sm">🗑 Limpiar</button>
                     <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#8b949e;cursor:pointer;">
@@ -329,7 +329,7 @@
                     </label>
                     <div style="display:flex;align-items:center;gap:5px;">
                         <span style="font-size:12px;color:#8b949e;">Cada</span>
-                        <select id="logs-interval-sel" onchange="cambiarIntervaloLogs()" style="background:#0d1117;color:#e6edf3;border:1px solid #494949;padding:4px 6px;border-radius:4px;font-family:monospace;font-size:12px;">
+                        <select id="logs-interval-sel" onchange="cambiarIntervaloLogs()" style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:4px 6px;border-radius:4px;font-family:monospace;font-size:12px;">
                             <option value="1000" selected>1s</option>
                             <option value="3000">3s</option>
                             <option value="5000">5s</option>
@@ -436,8 +436,8 @@
             <div class="card" style="margin-bottom:20px;">
                 <div class="seccion-titulo"><span>🔐 Permisos consola Discord</span><button onclick="cargarPermisosConsola()">↺ Actualizar</button></div>
                 <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-                    <input id="perm-id-input" type="text" placeholder="Discord User ID..." style="background:#0d1117;color:#e6edf3;border:1px solid #494949;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:180px;">
-                    <input id="perm-nombre-input" type="text" placeholder="Nombre (opcional)" style="background:#0d1117;color:#e6edf3;border:1px solid #494949;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:160px;">
+                    <input id="perm-id-input" type="text" placeholder="Discord User ID..." style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:180px;">
+                    <input id="perm-nombre-input" type="text" placeholder="Nombre (opcional)" style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:160px;">
                     <button onclick="agregarPermisoConsola()" class="btn-green" style="font-size:12px;padding:7px 14px;">+ Agregar</button>
                 </div>
                 <div style="font-size:11px;color:#8b949e;margin-bottom:10px;">El owner (DISCORD_DM_ID) siempre tiene acceso completo y no aparece en esta lista.</div>
@@ -457,7 +457,7 @@
                     <div class="alertas-lista" id="alertas-lista"><div class="empty-state">Sin alertas activas ✓</div></div>
                 </div>
             </div>
-            <div class="card" style="margin-bottom:20px;">
+            <div class="card separador-seccion" style="margin-bottom:20px;">
                 <div class="seccion-titulo">
                     <span>🔧 Tareas de reparación</span>
                     <button onclick="ignorarFallidas()">Ignorar fallidas</button>
@@ -1115,7 +1115,7 @@
             try {
                 const res  = await fetch('/consola/permisos'); const data = await res.json(); const lista = document.getElementById('permisos-lista'); const usuarios = data.usuarios || [];
                 if (!usuarios.length) { lista.innerHTML = '<div class="empty-state">Sin usuarios adicionales autorizados</div>'; return; }
-                lista.innerHTML = usuarios.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#0d1117;border-radius:6px;border-left:3px solid #58a6ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${u.nombre||'Sin nombre'}</span><span style="color:#8b949e;margin-left:8px;">${u.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">desde ${u.agregado||''}</span></div><button onclick="quitarPermisoConsola(${u.id})" style="background:#3d1f1f;color:#f85149;border:1px solid #f85149;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Quitar</button></div>`).join('');
+                lista.innerHTML = usuarios.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#000000;border:1px solid #21262d;border-radius:6px;border-left:3px solid #58a6ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${u.nombre||'Sin nombre'}</span><span style="color:#8b949e;margin-left:8px;">${u.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">desde ${u.agregado||''}</span></div><button onclick="quitarPermisoConsola(${u.id})" style="background:#3d1f1f;color:#f85149;border:1px solid #f85149;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Quitar</button></div>`).join('');
             } catch(e) { document.getElementById('permisos-lista').innerHTML = '<div class="empty-state">Endpoint no disponible</div>'; }
         }
         async function agregarPermisoConsola() {
