@@ -31,6 +31,12 @@ def notificar_dm(mensaje: str):
         asyncio.run_coroutine_threadsafe(_enviar_dm(mensaje), _loop_ref)
     else:
         _pending_dm.append(mensaje)
+def enviar_archivo_dm(ruta_archivo: str):
+    if _loop_ref and not _loop_ref.is_closed():
+        asyncio.run_coroutine_threadsafe(
+            _enviar_archivo_dm(ruta_archivo),
+            _loop_ref
+        )
 
 
 notificar = notificar_canal
@@ -58,6 +64,20 @@ async def _enviar_dm(mensaje: str):
         print(f"[Discord] Error DM: {e}")
         await _enviar_canal(mensaje)
 
+async def _enviar_archivo_dm(ruta_archivo: str):
+    if not DISCORD_DM_ID:
+        return
+
+    try:
+        usuario = await bot.fetch_user(DISCORD_DM_ID)
+
+        if usuario:
+            await usuario.send(
+                file=discord.File(ruta_archivo)
+            )
+
+    except Exception as e:
+        print(f"[Discord] Error enviando archivo: {e}")
 
 def _chunks(texto, n):
     return [texto[i:i+n] for i in range(0, len(texto), n)]
@@ -94,6 +114,8 @@ async def on_message(message):
     texto = message.content.strip()
     if not texto:
         return
+    
+
 
     # ── DMs ───────────────────────────────────────────────────────────
     if es_dm:
@@ -107,6 +129,8 @@ async def on_message(message):
         for chunk in _chunks(respuesta, 2000):
             await message.channel.send(chunk)
         return
+
+    
 
     # ── Canal del servidor ────────────────────────────────────────────
 
@@ -199,6 +223,10 @@ async def on_message(message):
     if texto == "!contadores":
         from tools.integraciones.sitios import get_contadores_resumen
         await message.channel.send(get_contadores_resumen())
+        return
+    if texto == "!testfile":
+        await _enviar_archivo_dm("/etc/hostname")
+        await message.channel.send("Archivo enviado.")
         return
 
     # Cualquier otro mensaje → Jarvis

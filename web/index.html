@@ -7,8 +7,8 @@
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:#000000; color:#e6edf3; font-family:monospace; height:100vh; display:flex; flex-direction:column; }
-        #header { padding:15px 20px; border-bottom:1px solid #494949; font-size:18px; color:#58a6ff; display:flex; align-items:center; justify-content:space-between; }
-        #tabs { display:flex; border-bottom:1px solid #494949; overflow-x:auto;}
+        #header { padding:15px 20px; border-bottom:1px solid #121212; font-size:18px; color:#0066ff; display:flex; align-items:center; justify-content:space-between; }
+        #tabs { display:flex; border-bottom:1px solid #121212; overflow-x:auto;}
         .tab { padding:10px 20px; cursor:pointer; color:#8b949e; position:relative; white-space:nowrap; font-size:13px; transition:color 0.5s; }
         .tab::after{content:''; position:absolute; bottom:0; left:50%; width:0; height:2px; background:#2761ff; transition:all 0.5s; transform:translateX(-50%); }
         .tab.active { color:#1f53ff}
@@ -19,114 +19,114 @@
         #chat { flex:1; overflow-y:auto; padding:20px; padding-bottom:60px; display:flex; flex-direction:column; gap:12px; }
         .mensaje { max-width:80%; padding:10px 15px; border-radius:8px; line-height:1.5; white-space:pre-wrap; font-size:14px; }
         .usuario { background:#1f6feb; align-self:flex-end; }
-        .asistente { background:#161b22; border:1px solid #494949; align-self:flex-start; }
+        .asistente { background:#000000; border:1px solid #121212; align-self:flex-start; }
         #input-area { padding:15px 20px 45px; border-top:1px solid #000000; display:flex; gap:10px; }
         #input { flex:1; background:#000000; border:1px solid #646464; color:#e6edf3; padding:10px; border-radius:6px; font-family:monospace; font-size:14px; }
-        #input:focus { outline:none; border-color:#58a6ff; }
-        button { background:#1f6feb; border:none; color:white; padding:10px 20px; border-radius:6px; cursor:pointer; font-family:monospace; }
-        button:hover { background:#388bfd; }
+        #input:focus { outline:none; border-color:#0066ff; }
+        button { background:#0059ff; border:1px solid #009fe9; color:rgb(255, 255, 255); padding:10px 20px; border-radius:6px; cursor:pointer; font-family:monospace; }
+        button:hover { background:#003cff; }
         .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; margin-bottom:20px; }
-        .card { background:#000000; border:1px solid #494949; border-radius:8px; padding:20px; }
-        .card h3 { color:#58a6ff; margin-bottom:15px; font-size:14px; }
+        .card { background:#000000; border:1px solid #121212; border-radius:8px; padding:20px; }
+        .card h3 { color:#0066ff; margin-bottom:15px; font-size:14px; }
         .stat { font-size:32px; font-weight:bold; }
         .stat-label { color:#8b949e; font-size:12px; margin-top:5px; }
         .chart-container { position:relative; height:120px; margin-top:10px; }
         .containers-list { display:flex; flex-direction:column; gap:8px; }
         .container-item { display:flex; justify-content:space-between; align-items:center; padding:8px; background:#000000; border:1px solid #21262d; border-radius:6px; font-size:13px; }
         .badge { padding:3px 8px; border-radius:4px; font-size:11px; }
-        .badge.running { background:#1a4a1a; color:#3fb950; }
-        .badge.stopped { background:#3d1f1f; color:#f85149; }
-        .btn-restart { background:#21262d; color:#8b949e; border:1px solid #494949; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-family:monospace; }
-        .btn-restart:hover { background:#494949; color:#e6edf3; }
+        .badge.running { background:#0e5c0e; color:#00ff22; }
+        .badge.stopped { background:#3d1f1f; color:#ff0d00; }
+        .btn-restart { background:#21262d; color:#8b949e; border:1px solid #121212; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px; font-family:monospace; }
+        .btn-restart:hover { background:#121212; color:#e6edf3; }
         .alerta { position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; font-size:13px; z-index:999; animation:fadein 0.3s; max-width:350px; }
-        .alerta.warning { background:#3d2f00; border:1px solid #d29922; color:#d29922; }
-        .alerta.danger  { background:#3d1f1f; border:1px solid #f85149; color:#f85149; }
-        .alerta.success { background:#1a4a1a; border:1px solid #3fb950; color:#3fb950; }
+        .alerta.warning { background:#3d2f00; border:1px solid #ffd000; color:#ffd000; }
+        .alerta.danger  { background:#3d1f1f; border:1px solid #ff0d00; color:#ff0d00; }
+        .alerta.success { background:#1a4a1a; border:1px solid #0cd51e; color:#0cd51e; }
         @keyframes fadein { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
-        .historial-item { padding:8px 12px; border-left:2px solid #494949; margin-bottom:8px; font-size:13px; color:#8b949e; }
-        .historial-item .rol { color:#58a6ff; font-size:11px; margin-bottom:3px; }
-        .stat.ok { color:#3fb950; } .stat.warn { color:#d29922; } .stat.danger { color:#f85149; }
+        .historial-item { padding:8px 12px; border-left:2px solid #121212; margin-bottom:8px; font-size:13px; color:#8b949e; }
+        .historial-item .rol { color:#0066ff; font-size:11px; margin-bottom:3px; }
+        .stat.ok { color:#0cd51e; } .stat.warn { color:#ffd000; } .stat.danger { color:#ff0d00; }
         .net-stats { display:flex; justify-content:space-between; margin-top:8px; font-size:12px; }
-        .net-up { color:#f78166; } .net-down { color:#3fb950; }
+        .net-up { color:#f78166; } .net-down { color:#0cd51e; }
         .btn-danger { background:#791818; color:#ff4f1a; border:1px solid #ff0d00; }
         .btn-danger:hover { background:#5c0000; }
-        .btn-warn { background:#5f4b03; color:#e0921d; border:1px solid #d29922; }
+        .btn-warn { background:#5f4b03; color:#e0921d; border:1px solid #ffd000; }
         .btn-warn:hover { background:#5c4a00; }
-        .btn-sm { background:#21262d; color:#8b949e; border:1px solid #494949; padding:5px 12px; font-size:11px; border-radius:4px; cursor:pointer; font-family:monospace; }
-        .btn-sm:hover { background:#494949; color:#e6edf3; }
-        .btn-green { background:#1a4a1a; color:#3fb950; border:1px solid #3fb950; }
+        .btn-sm { background:#21262d; color:#8b949e; border:1px solid #121212; padding:5px 12px; font-size:11px; border-radius:4px; cursor:pointer; font-family:monospace; }
+        .btn-sm:hover { background:#121212; color:#e6edf3; }
+        .btn-green { background:#1a4a1a; color:#0cd51e; border:1px solid #0cd51e; }
         .btn-green:hover { background:#2a5a2a; }
         .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; }
         .modal.show { display:flex; }
-        .modal-box { background:#161b22; border:1px solid #494949; border-radius:8px; padding:30px; text-align:center; max-width:380px; }
-        .modal-box h3 { color:#f85149; margin-bottom:15px; }
+        .modal-box { background:#000000; border:1px solid #121212; border-radius:8px; padding:30px; text-align:center; max-width:380px; }
+        .modal-box h3 { color:#ff0d00; margin-bottom:15px; }
         .modal-box p { color:#8b949e; margin-bottom:20px; font-size:13px; }
         .modal-btns { display:flex; gap:10px; justify-content:center; }
         .ia-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:20px; }
-        .ia-stat-card { background:#000000; border:1px solid #494949; border-radius:8px; padding:14px; }
+        .ia-stat-card { background:#000000; border:1px solid #121212; border-radius:8px; padding:14px; }
         .ia-stat-card .label { font-size:10px; color:#8b949e; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
-        .ia-stat-card .value { font-size:22px; font-weight:bold; color:#58a6ff; }
+        .ia-stat-card .value { font-size:22px; font-weight:bold; color:#0066ff; }
         .ia-stat-card .sub { font-size:11px; color:#8b949e; margin-top:4px; }
-        .ia-stat-card.green .value { color:#3fb950; }
-        .ia-stat-card.yellow .value { color:#d29922; }
-        .ia-stat-card.red .value { color:#f85149; }
+        .ia-stat-card.green .value { color:#0cd51e; }
+        .ia-stat-card.yellow .value { color:#ffd000; }
+        .ia-stat-card.red .value { color:#ff0d00; }
         .token-bar-big { background:#21262d; border-radius:6px; height:8px; margin-top:8px; overflow:hidden; }
-        .token-bar-big-fill { height:8px; border-radius:6px; background:#58a6ff; transition:width 0.5s; }
-        .seccion-titulo { color:#58a6ff; font-size:13px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #21262d; display:flex; align-items:center; gap:8px; }
+        .token-bar-big-fill { height:8px; border-radius:6px; background:#0066ff; transition:width 0.5s; }
+        .seccion-titulo { color:#0066ff; font-size:13px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #21262d; display:flex; align-items:center; gap:8px; }
         .seccion-titulo span { flex:1; }
-        .seccion-titulo button { font-size:11px; padding:4px 10px; background:#21262d; border:1px solid #494949; color:#8b949e; cursor:pointer; font-family:monospace; border-radius:4px; }
-        .seccion-titulo button:hover { background:#494949; color:#e6edf3; }
+        .seccion-titulo button { font-size:11px; padding:4px 10px; background:#21262d; border:1px solid #121212; color:#8b949e; cursor:pointer; font-family:monospace; border-radius:4px; }
+        .seccion-titulo button:hover { background:#121212; color:#e6edf3; }
         .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
-        .status-dot.green  { background:#3fb950; box-shadow:0 0 5px #3fb950; }
-        .status-dot.yellow { background:#d29922; }
-        .status-dot.red    { background:#f85149; }
+        .status-dot.green  { background:#0cd51e; box-shadow:0 0 5px #0cd51e; }
+        .status-dot.yellow { background:#ffd000; }
+        .status-dot.red    { background:#ff0d00; }
         .progreso-row { display:flex; align-items:center; gap:10px; font-size:12px; margin-bottom:8px; }
         .progreso-label { color:#8b949e; min-width:90px; }
         .progreso-bar { flex:1; background:#21262d; border-radius:4px; height:6px; }
         .progreso-bar-fill { height:6px; border-radius:4px; transition:width 0.5s; }
         .progreso-valor { color:#e6edf3; min-width:30px; text-align:right; }
         .actividad-lista { display:flex; flex-direction:column; gap:6px; max-height:350px; overflow-y:auto; }
-        .actividad-item { display:flex; align-items:flex-start; gap:10px; padding:8px 12px; background:#000000; border:1px solid #21262d; border-left:3px solid #494949; border-radius:6px; font-size:12px; }
-        .actividad-item.tool  { border-left-color:#58a6ff; }
-        .actividad-item.alert { border-left-color:#f85149; }
-        .actividad-item.ok    { border-left-color:#3fb950; }
-        .actividad-item.warn  { border-left-color:#d29922; }
-        .actividad-item.auto  { border-left-color:#bc8cff; }
-        .actividad-item.cmd   { border-left-color:#d29922; }
+        .actividad-item { display:flex; align-items:flex-start; gap:10px; padding:8px 12px; background:#000000; border:1px solid #21262d; border-left:3px solid #121212; border-radius:6px; font-size:12px; }
+        .actividad-item.tool  { border-left-color:#0066ff; }
+        .actividad-item.alert { border-left-color:#ff0d00; }
+        .actividad-item.ok    { border-left-color:#0cd51e; }
+        .actividad-item.warn  { border-left-color:#ffd000; }
+        .actividad-item.auto  { border-left-color:#915ddb; }
+        .actividad-item.cmd   { border-left-color:#ffd000; }
         .act-tiempo { color:#8b949e; font-size:11px; min-width:65px; }
         .act-texto  { flex:1; color:#e6edf3; }
         .act-badge  { font-size:10px; padding:2px 6px; border-radius:3px; background:#21262d; color:#8b949e; white-space:nowrap; }
         .alertas-lista { display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; }
         .alerta-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border:1px solid #21262d; border-radius:6px; font-size:12px; }
-        .alerta-item.critica     { background:#3d1f1f; border:1px solid #f85149; color:#f85149; }
-        .alerta-item.advertencia { background:#3d2f00; border:1px solid #d29922; color:#d29922; }
+        .alerta-item.critica     { background:#3d1f1f; border:1px solid #ff0d00; color:#ff0d00; }
+        .alerta-item.advertencia { background:#3d2f00; border:1px solid #ffd000; color:#ffd000; }
         .alerta-item-tiempo { font-size:10px; opacity:0.7; }
         .cmds-lista { display:flex; flex-direction:column; gap:5px; max-height:280px; overflow-y:auto; }
         .cmd-item { background:#000000; border:1px solid #21262d; border-radius:6px; padding:8px 12px; font-size:12px; }
-        .cmd-item .cmd-text { color:#bc8cff; font-family:monospace; margin-bottom:3px; word-break:break-all; }
+        .cmd-item .cmd-text { color:#915ddb; font-family:monospace; margin-bottom:3px; word-break:break-all; }
         .cmd-item .cmd-meta { color:#8b949e; font-size:10px; display:flex; justify-content:space-between; }
         .empty-state { color:#8b949e; font-size:13px; text-align:center; padding:25px; }
         .tareas-resumen { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
         .tarea-stat { background:#000000; border:1px solid #21262d; border-radius:6px; padding:10px; text-align:center; }
         .tarea-stat .ts-num   { font-size:20px; font-weight:bold; margin-bottom:2px; }
         .tarea-stat .ts-label { font-size:10px; color:#8b949e; text-transform:uppercase; }
-        .tarea-stat.pendiente .ts-num { color:#d29922; }
-        .tarea-stat.en-curso  .ts-num { color:#58a6ff; }
-        .tarea-stat.reparado  .ts-num { color:#3fb950; }
-        .tarea-stat.fallido   .ts-num { color:#f85149; }
-        .tarea-item { background:#000000; border:1px solid #21262d; border-left:3px solid #494949; border-radius:6px; padding:10px 12px; margin-bottom:7px; font-size:12px; }
-        .tarea-item.pendiente { border-left-color:#d29922; }
-        .tarea-item.en_curso  { border-left-color:#58a6ff; }
-        .tarea-item.reparado  { border-left-color:#3fb950; }
-        .tarea-item.fallido   { border-left-color:#f85149; }
+        .tarea-stat.pendiente .ts-num { color:#ffd000; }
+        .tarea-stat.en-curso  .ts-num { color:#0066ff; }
+        .tarea-stat.reparado  .ts-num { color:#0cd51e; }
+        .tarea-stat.fallido   .ts-num { color:#ff0d00; }
+        .tarea-item { background:#000000; border:1px solid #21262d; border-left:3px solid #121212; border-radius:6px; padding:10px 12px; margin-bottom:7px; font-size:12px; }
+        .tarea-item.pendiente { border-left-color:#ffd000; }
+        .tarea-item.en_curso  { border-left-color:#0066ff; }
+        .tarea-item.reparado  { border-left-color:#0cd51e; }
+        .tarea-item.fallido   { border-left-color:#ff0d00; }
         .tarea-item.ignorado  { border-left-color:#8b949e; opacity:0.6; }
         .tarea-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
         .tarea-desc   { color:#e6edf3; flex:1; }
         .tarea-estado-badge { font-size:10px; padding:2px 6px; border-radius:3px; margin-left:8px; white-space:nowrap; }
-        .tarea-estado-badge.pendiente { background:#3d2f00; color:#d29922; }
-        .tarea-estado-badge.en_curso  { background:#1a2a4a; color:#58a6ff; }
-        .tarea-estado-badge.reparado  { background:#1a4a1a; color:#3fb950; }
-        .tarea-estado-badge.fallido   { background:#3d1f1f; color:#f85149; }
+        .tarea-estado-badge.pendiente { background:#3d2f00; color:#ffd000; }
+        .tarea-estado-badge.en_curso  { background:#1a2a4a; color:#0066ff; }
+        .tarea-estado-badge.reparado  { background:#1a4a1a; color:#0cd51e; }
+        .tarea-estado-badge.fallido   { background:#3d1f1f; color:#ff0d00; }
         .tarea-meta      { color:#8b949e; font-size:10px; margin-top:2px; }
         .tarea-resultado { color:#8b949e; font-size:11px; margin-top:3px; font-style:italic; }
         .scroll-box { max-height:320px; overflow-y:auto; }
@@ -135,11 +135,11 @@
         .vigilante-panel { background:#000000; border-radius:8px; padding:16px; margin-bottom:16px; }
         .vigilante-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
         .vigilante-row label { color:#8b949e; font-size:12px; min-width:100px; }
-        .vigilante-input { background:#161b22; border:1px solid #494949; color:#e6edf3; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px; width:80px; }
-        .vigilante-input:focus { outline:none; border-color:#58a6ff; }
+        .vigilante-input { background:#000000; border:1px solid #121212; color:#e6edf3; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px; width:80px; }
+        .vigilante-input:focus { outline:none; border-color:#0066ff; }
         .toggle-btn { padding:6px 16px; font-size:12px; border-radius:4px; cursor:pointer; border:none; font-family:monospace; transition:background 0.2s; }
-        .toggle-btn.on  { background:#1a4a1a; color:#3fb950; border:1px solid #3fb950; }
-        .toggle-btn.off { background:#3d1f1f; color:#f85149; border:1px solid #f85149; }
+        .toggle-btn.on  { background:#1a4a1a; color:#0cd51e; border:1px solid #0cd51e; }
+        .toggle-btn.off { background:#3d1f1f; color:#ff0d00; border:1px solid #ff0d00; }
         .tokens-hist-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #1e1e22; font-size:12px; }
         .tokens-hist-item:last-child { border-bottom:none; }
         .tokens-hist-fecha { color:#8b949e; min-width:90px; }
@@ -147,23 +147,23 @@
         .tokens-hist-bar-wrap { display:flex; align-items:center; gap:6px; }
         .tokens-hist-bar { height:5px; border-radius:3px; min-width:2px; transition:width 0.4s; }
         .tokens-hist-num { color:#e6edf3; min-width:55px; text-align:right; }
-        .tokens-hist-hoy { background:#1a2a4a; border-radius:4px; padding:2px 6px; font-size:10px; color:#58a6ff; margin-left:4px; }
+        .tokens-hist-hoy { background:#1a2a4a; border-radius:4px; padding:2px 6px; font-size:10px; color:#0066ff; margin-left:4px; }
         .tokens-hist-modelo { color:#8b949e; font-size:10px; margin-top:2px; }
 
         /* ── Estado indicador ── */
         #estado-wrapper { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; position:relative; }
-        #estado-dot { width:8px; height:8px; border-radius:50%; background:#3fb950; box-shadow:0 0 6px #3fb950; transition:background 0.4s, box-shadow 0.4s; }
-        #estado-dot.warn     { background:#d29922; box-shadow:0 0 6px #d29922; }
-        #estado-dot.critical { background:#f85149; box-shadow:0 0 8px #f85149; animation:pulse 1s infinite; }
+        #estado-dot { width:8px; height:8px; border-radius:50%; background:#0cd51e; box-shadow:0 0 6px #0cd51e; transition:background 0.4s, box-shadow 0.4s; }
+        #estado-dot.warn     { background:#ffd000; box-shadow:0 0 6px #ffd000; }
+        #estado-dot.critical { background:#ff0d00; box-shadow:0 0 8px #ff0d00; animation:pulse 1s infinite; }
         #estado-dot.offline  { background:#484f58; box-shadow:none; }
         #estado-txt { transition:color 0.3s; }
-        #estado-txt.ok       { color:#3fb950; }
-        #estado-txt.warn     { color:#d29922; }
+        #estado-txt.ok       { color:#0cd51e; }
+        #estado-txt.warn     { color:#ffd000; }
         #estado-txt.critical { color:#ff0d00; }
         #estado-txt.offline  { color:#484f58; }
         #estado-tooltip {
             display:none; position:absolute; top:calc(100% + 8px); right:0;
-            background:#161b22; border:1px solid #494949; border-radius:8px;
+            background:#000000; border:1px solid #121212; border-radius:8px;
             padding:12px 16px; min-width:260px; z-index:500; font-size:12px;
         }
         #estado-tooltip.show { display:block; }
@@ -171,26 +171,26 @@
         #estado-tooltip .tt-item { padding:4px 0; border-bottom:1px solid #21262d; display:flex; align-items:center; gap:8px; }
         #estado-tooltip .tt-item:last-child { border-bottom:none; }
         #estado-tooltip .tt-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-        #estado-tooltip .tt-dot.red    { background:#f85149; }
-        #estado-tooltip .tt-dot.yellow { background:#d29922; }
-        #estado-tooltip .tt-dot.green  { background:#3fb950; }
+        #estado-tooltip .tt-dot.red    { background:#ff0d00; }
+        #estado-tooltip .tt-dot.yellow { background:#ffd000; }
+        #estado-tooltip .tt-dot.green  { background:#00ff22; }
         #estado-tooltip .tt-item .tt-dismiss {
             margin-left:auto; background:none; border:none; color:#484f58;
             cursor:pointer; font-size:13px; padding:0 2px; line-height:1;
             border-radius:3px; transition:color 0.15s;
         }
-        #estado-tooltip .tt-item .tt-dismiss:hover { color:#f85149; }
+        #estado-tooltip .tt-item .tt-dismiss:hover { color:#ff0d00; }
         #tt-footer {
             margin-top:10px; padding-top:8px; border-top:1px solid #21262d;
             display:flex; justify-content:flex-end; gap:6px;
         }
         .tt-btn {
-            background:#21262d; border:1px solid #494949; color:#8b949e;
+            background:#21262d; border:1px solid #121212; color:#8b949e;
             padding:3px 10px; border-radius:4px; font-size:11px;
             cursor:pointer; font-family:monospace; transition:all 0.15s;
         }
-        .tt-btn:hover { background:#494949; color:#e6edf3; }
-        .tt-btn.green { border-color:#3fb950; color:#3fb950; }
+        .tt-btn:hover { background:#121212; color:#e6edf3; }
+        .tt-btn.green { border-color:#0cd51e; color:#0cd51e; }
         .tt-btn.green:hover { background:#1a4a1a; }
 
         /* ── Consola ── */
@@ -198,15 +198,15 @@
         .consola-wrap { display:flex; flex-direction:column; height:100%; gap:0; }
         .consola-toolbar {
             display:flex; align-items:center; gap:8px; padding:10px 16px;
-            background:#161b22; border-bottom:1px solid #494949; flex-wrap:wrap;
+            background:#121212; border-bottom:1px solid #121212; flex-wrap:wrap;
         }
         .consola-toolbar span { font-size:12px; color:#8b949e; }
         .shortcut-btn {
-            background:#000000; border:1px solid #494949; color:#8b949e;
+            background:#000000; border:1px solid #121212; color:#8b949e;
             padding:4px 10px; border-radius:4px; font-size:11px; font-family:monospace;
             cursor:pointer; transition:all 0.15s;
         }
-        .shortcut-btn:hover { background:#21262d; color:#e6edf3; border-color:#58a6ff; }
+        .shortcut-btn:hover { background:#21262d; color:#e6edf3; border-color:#0066ff; }
         #consola-output {
             flex:1; overflow-y:auto; padding:16px;
             font-family:monospace; font-size:13px; line-height:1.6;
@@ -214,23 +214,23 @@
             min-height:0;
         }
         .consola-line { margin-bottom:2px; white-space:pre-wrap; word-break:break-all; }
-        .consola-line.prompt-line { color:#58a6ff; }
+        .consola-line.prompt-line { color:#0066ff; }
         .consola-line.output-line { color:#c9d1d9; }
-        .consola-line.error-line  { color:#f85149; }
+        .consola-line.error-line  { color:#ff0d00; }
         .consola-line.info-line   { color:#8b949e; font-style:italic; }
-        .consola-line.warn-confirm { color:#d29922; }
+        .consola-line.warn-confirm { color:#ffd000; }
         #consola-input-row {
             display:flex; align-items:center; gap:0;
-            padding:10px 16px; border-top:1px solid #494949;
-            background:#161b22;
+            padding:10px 16px; border-top:1px solid #121212;
+            background:#000000;
         }
         #consola-prompt-label {
-            color:#58a6ff; font-size:13px; font-family:monospace;
+            color:#0066ff; font-size:13px; font-family:monospace;
             white-space:nowrap; margin-right:8px; user-select:none;
         }
         #consola-input {
             flex:1; background:transparent; border:none; outline:none;
-            color:#e6edf3; font-family:monospace; font-size:13px; caret-color:#58a6ff;
+            color:#e6edf3; font-family:monospace; font-size:13px; caret-color:#0066ff;
         }
         .consola-danger-modal {
             display:none; position:fixed; inset:0;
@@ -239,18 +239,18 @@
         }
         .consola-danger-modal.show { display:flex; }
         .consola-danger-box {
-            background:#161b22; border:1px solid #f85149;
+            background:#000000; border:1px solid #ff0d00;
             border-radius:8px; padding:24px; max-width:400px; text-align:center;
         }
-        .consola-danger-box h3 { color:#f85149; margin-bottom:10px; }
+        .consola-danger-box h3 { color:#ff0d00; margin-bottom:10px; }
         .consola-danger-box p  { color:#8b949e; font-size:13px; margin-bottom:18px; }
         .consola-danger-box code {
-            display:block; background:#000000; border:1px solid #494949;
-            border-radius:4px; padding:8px 12px; color:#bc8cff;
+            display:block; background:#000000; border:1px solid #121212;
+            border-radius:4px; padding:8px 12px; color:#915ddb;
             font-size:12px; margin-bottom:18px; text-align:left; word-break:break-all;
         }
 
-        #perm-id-input:focus, #perm-nombre-input:focus, #log-custom:focus { outline:none; border-color:#58a6ff; }
+        #perm-id-input:focus, #perm-nombre-input:focus, #log-custom:focus { outline:none; border-color:#0066ff; }
         #log-custom::placeholder { color:#484f58; }
     </style>
 </head>
@@ -320,16 +320,16 @@
             <div class="card">
                 <h3>📋 Logs en tiempo real</h3>
                 <div style="margin:12px 0 8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-                    <select id="log-select" style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:8px;border-radius:6px;font-family:monospace;min-width:160px;"></select>
-                    <input id="log-custom" type="text" placeholder="Servicio custom..." style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:8px;border-radius:6px;font-family:monospace;width:160px;" title="Nombre de contenedor o servicio personalizado">
-                    <button onclick="cargarLogs()">↺ Actualizar</button>
+                    <select id="log-select" style="background:#111111;color:#e6edf3;border:1px solid #121212;padding:8px;border-radius:6px;font-family:monospace;min-width:160px;"></select>
+                    <input id="log-custom" type="text" placeholder="Servicio custom..." style="background:#111111;color:#e6edf3;border:1px solid #121212;padding:8px;border-radius:6px;font-family:monospace;width:160px;" title="Nombre de contenedor o servicio personalizado">
+                    <button onclick="cargarLogs()">↺ Actualizar</button*  >
                     <button onclick="limpiarLogsPanel()" class="btn-sm">🗑 Limpiar</button>
                     <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#8b949e;cursor:pointer;">
                         <input type="checkbox" id="auto-refresh" checked onchange="toggleAutoLogs()"> Auto-refresh
                     </label>
                     <div style="display:flex;align-items:center;gap:5px;">
                         <span style="font-size:12px;color:#8b949e;">Cada</span>
-                        <select id="logs-interval-sel" onchange="cambiarIntervaloLogs()" style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:4px 6px;border-radius:4px;font-family:monospace;font-size:12px;">
+                        <select id="logs-interval-sel" onchange="cambiarIntervaloLogs()" style="background:#000000;color:#e6edf3;border:1px solid #121212;padding:4px 6px;border-radius:4px;font-family:monospace;font-size:12px;">
                             <option value="1000" selected>1s</option>
                             <option value="3000">3s</option>
                             <option value="5000">5s</option>
@@ -339,7 +339,7 @@
                     </div>
                     <span id="logs-status" style="font-size:11px;color:#8b949e;margin-left:auto;"></span>
                 </div>
-                <div id="logs-output" style="background:#000000;border:1px solid #494949;border-radius:6px;padding:15px;height:500px;overflow-y:auto;font-size:12px;white-space:pre-wrap;color:#8b949e;"></div>
+                <div id="logs-output" style="background:#000000;border:1px solid #121212;border-radius:6px;padding:15px;height:500px;overflow-y:auto;font-size:12px;white-space:pre-wrap;color:#8b949e;"></div>
             </div>
         </div>
 
@@ -355,19 +355,19 @@
                         </div>
                         <div style="flex:1;">
                             <div style="display:flex;justify-content:space-between;font-size:11px;color:#8b949e;margin-bottom:4px;">
-                                <span>🌐 Web: <span id="ia-tokens-web" style="color:#58a6ff;">0</span></span>
-                                <span>💬 Discord: <span id="ia-tokens-discord" style="color:#bc8cff;">0</span></span>
-                                <span>Restantes: <span id="ia-tokens-rest" style="color:#3fb950;">200,000</span></span>
+                                <span>🌐 Web: <span id="ia-tokens-web" style="color:#0066ff;">0</span></span>
+                                <span>💬 Discord: <span id="ia-tokens-discord" style="color:#915ddb;">0</span></span>
+                                <span>Restantes: <span id="ia-tokens-rest" style="color:#0cd51e;">200,000</span></span>
                             </div>
                             <div class="token-bar-big">
-                                <div id="ia-bar-web"     style="height:8px;border-radius:6px 0 0 6px;background:#58a6ff;float:left;transition:width 0.5s;"></div>
-                                <div id="ia-bar-discord" style="height:8px;border-radius:0 6px 6px 0;background:#bc8cff;float:left;transition:width 0.5s;"></div>
+                                <div id="ia-bar-web"     style="height:8px;border-radius:6px 0 0 6px;background:#0066ff;float:left;transition:width 0.5s;"></div>
+                                <div id="ia-bar-discord" style="height:8px;border-radius:0 6px 6px 0;background:#915ddb;float:left;transition:width 0.5s;"></div>
                             </div>
                             <div style="clear:both;"></div>
                             <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#8b949e;">
                                 <span id="ia-tokens-fecha">hoy</span>
                                 <span id="ia-ultima-sync"></span>
-                                <button onclick="resetTokens()" style="background:none;border:1px solid #494949;color:#8b949e;padding:2px 8px;font-size:10px;cursor:pointer;border-radius:3px;">↺ Reset</button>
+                                <button onclick="resetTokens()" style="background:none;border:1px solid #121212;color:#8b949e;padding:2px 8px;font-size:10px;cursor:pointer;border-radius:3px;">↺ Reset</button>
                             </div>
                         </div>
                     </div>
@@ -436,8 +436,8 @@
             <div class="card" style="margin-bottom:20px;">
                 <div class="seccion-titulo"><span>🔐 Permisos consola Discord</span><button onclick="cargarPermisosConsola()">↺ Actualizar</button></div>
                 <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-                    <input id="perm-id-input" type="text" placeholder="Discord User ID..." style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:180px;">
-                    <input id="perm-nombre-input" type="text" placeholder="Nombre (opcional)" style="background:#000000;color:#e6edf3;border:1px solid #494949;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:160px;">
+                    <input id="perm-id-input" type="text" placeholder="Discord User ID..." style="background:#000000;color:#e6edf3;border:1px solid #121212;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:180px;">
+                    <input id="perm-nombre-input" type="text" placeholder="Nombre (opcional)" style="background:#000000;color:#e6edf3;border:1px solid #121212;padding:7px 10px;border-radius:4px;font-family:monospace;font-size:13px;width:160px;">
                     <button onclick="agregarPermisoConsola()" class="btn-green" style="font-size:12px;padding:7px 14px;">+ Agregar</button>
                 </div>
                 <div style="font-size:11px;color:#8b949e;margin-bottom:10px;">El owner (DISCORD_DM_ID) siempre tiene acceso completo y no aparece en esta lista.</div>
@@ -446,10 +446,10 @@
             <div class="grid" style="margin-bottom:20px;">
                 <div class="card">
                     <div class="seccion-titulo"><span>📊 Uso por categoría</span></div>
-                    <div class="progreso-row"><span class="progreso-label">Sistema</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-sistema" style="width:0%;background:#58a6ff;"></div></div><span class="progreso-valor" id="val-sistema">0</span></div>
-                    <div class="progreso-row"><span class="progreso-label">Media</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-media" style="width:0%;background:#3fb950;"></div></div><span class="progreso-valor" id="val-media">0</span></div>
-                    <div class="progreso-row"><span class="progreso-label">Docker</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-docker" style="width:0%;background:#bc8cff;"></div></div><span class="progreso-valor" id="val-docker">0</span></div>
-                    <div class="progreso-row"><span class="progreso-label">Comandos</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-cmd" style="width:0%;background:#d29922;"></div></div><span class="progreso-valor" id="val-cmd">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Sistema</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-sistema" style="width:0%;background:#0066ff;"></div></div><span class="progreso-valor" id="val-sistema">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Media</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-media" style="width:0%;background:#0cd51e;"></div></div><span class="progreso-valor" id="val-media">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Docker</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-docker" style="width:0%;background:#915ddb;"></div></div><span class="progreso-valor" id="val-docker">0</span></div>
+                    <div class="progreso-row"><span class="progreso-label">Comandos</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-cmd" style="width:0%;background:#ffd000;"></div></div><span class="progreso-valor" id="val-cmd">0</span></div>
                     <div class="progreso-row"><span class="progreso-label">Home Asst.</span><div class="progreso-bar"><div class="progreso-bar-fill" id="bar-ha" style="width:0%;background:#f78166;"></div></div><span class="progreso-valor" id="val-ha">0</span></div>
                 </div>
                 <div class="card">
@@ -486,10 +486,10 @@
         <div id="panel-consola">
             <div class="consola-wrap" style="height:calc(100vh - 130px);">
                 <div class="consola-toolbar">
-                    <span style="color:#58a6ff;font-weight:bold;">fabio@jarvis</span>
-                    <span style="color:#494949;">|</span>
-                    <span id="consola-cwd-label" style="color:#bc8cff;">/srv/nas</span>
-                    <span style="color:#494949;margin-left:4px;">|</span>
+                    <span style="color:#0066ff;font-weight:bold;">fabio@jarvis</span>
+                    <span style="color:#121212;">|</span>
+                    <span id="consola-cwd-label" style="color:#915ddb;">/srv/nas</span>
+                    <span style="color:#121212;margin-left:4px;">|</span>
                     <span>Atajos:</span>
                     <button class="shortcut-btn" onclick="consolaShortcut('ps aux --sort=-%cpu | head -15')">ps</button>
                     <button class="shortcut-btn" onclick="consolaShortcut('df -h')">df</button>
@@ -542,15 +542,15 @@
     <div style="position:fixed;bottom:0;left:0;right:0;background:#010409;border-top:1px solid #000000;padding:6px 20px;display:flex;gap:14px;align-items:center;font-size:11px;color:#8b949e;z-index:100;">
         <span>🤖 <span id="bar-modelo">cargando...</span></span>
         <span>|</span>
-        <span>🌐 Web: <span id="bar-web-tokens" style="color:#58a6ff;">0</span></span>
-        <span>💬 Discord: <span id="bar-discord-tokens" style="color:#bc8cff;">0</span></span>
+        <span>🌐 Web: <span id="bar-web-tokens" style="color:#0066ff;">0</span></span>
+        <span>💬 Discord: <span id="bar-discord-tokens" style="color:#915ddb;">0</span></span>
         <span>Total: <span id="tokens-used-bar" style="color:#e6edf3;">0</span> / <span id="tokens-total-bar" style="color:#8b949e;">200,000</span></span>
         <span>|</span>
         <div style="flex:1;background:#21262d;border-radius:4px;height:6px;max-width:160px;overflow:hidden;">
-            <div id="bar-web-fill"     style="background:#58a6ff;height:6px;float:left;transition:width 0.5s;"></div>
-            <div id="bar-discord-fill" style="background:#bc8cff;height:6px;float:left;transition:width 0.5s;"></div>
+            <div id="bar-web-fill"     style="background:#0066ff;height:6px;float:left;transition:width 0.5s;"></div>
+            <div id="bar-discord-fill" style="background:#915ddb;height:6px;float:left;transition:width 0.5s;"></div>
         </div>
-        <span id="bar-vigilante-status" style="margin-left:auto;color:#3fb950;">🛡️ Vigilante activo</span>
+        <span id="bar-vigilante-status" style="margin-left:auto;color:#0cd51e;">🛡️ Vigilante activo</span>
     </div>
 
     <script>
@@ -595,6 +595,7 @@
         let _healthSilenciados = new Set();
         // Snapshot de items activos (para detectar si cambia un item silenciado)
         let _healthSnap = {};
+        let _hilosHtml = '';
 
         function toggleTooltip() {
             const tt = document.getElementById('estado-tooltip');
@@ -626,10 +627,10 @@
         function _renderTooltipConSilenciados() {
             const ttc    = document.getElementById('tt-content');
             const footer = document.getElementById('tt-footer');
-            const items  = Object.values(_healthSnap).filter(i => !_healthSilenciados.has(i.key));
+            const items  = Object.values(_healthSnap).filter(i => !_healthSilenciados.has(i.key) && i.key !== '__hilos__');
 
             if (!items.length) {
-                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot green"></div><span style="color:#3fb950;">Todo en orden (o silenciado)</span></div>';
+                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot green"></div><span style="color:#0cd51e;">Todo en orden (o silenciado)</span></div>';
                 footer.style.display = 'none';
             } else {
                 ttc.innerHTML = items.map(i =>
@@ -641,6 +642,8 @@
                 ).join('');
                 footer.style.display = 'flex';
             }
+            // Siempre añadir hilos al final (no son descartables)
+            if (_hilosHtml) ttc.innerHTML += _hilosHtml;
         }
 
         function _actualizarIndicadorConSilenciados() {
@@ -651,11 +654,11 @@
             const hayWarn       = itemsVisibles.some(i => i.tipo === 'yellow');
 
             if (!itemsVisibles.length) {
-                dot.className = ''; txt.className = 'ok'; txt.textContent = '● Online';
+                dot.className = ''; txt.className = 'ok'; txt.textContent = 'Online';
             } else if (hayProblemas) {
-                dot.className = 'critical'; txt.className = 'critical'; txt.textContent = '🔴 Crítico';
+                dot.className = 'critical'; txt.className = 'critical'; txt.textContent = 'Crítico';
             } else if (hayWarn) {
-                dot.className = 'warn'; txt.className = 'warn'; txt.textContent = '⚠ Advertencias';
+                dot.className = 'warn'; txt.className = 'warn'; txt.textContent = 'Advertencias';
             }
         }
 
@@ -686,21 +689,16 @@
                 _healthSnap = nuevoSnap;
 
                 // Renderizar tooltip
-                let hilosHtml = '';
                 if (data.hilos && Object.keys(data.hilos).length) {
-                    hilosHtml = '<div class="tt-title" style="margin-top:10px;">Hilos</div>' +
+                    _hilosHtml = '<div class="tt-title" style="margin-top:10px;">Hilos</div>' +
                         Object.entries(data.hilos).map(([k,v]) =>
                             `<div class="tt-item"><div class="tt-dot ${v==='vivo'?'green':'red'}"></div><span>${k}: ${v}</span></div>`
                         ).join('');
+                } else {
+                    _hilosHtml = '';
                 }
 
-                // Guardar hilos en snap para renderizado
-                _healthSnap['__hilos__'] = { key:'__hilos__', _hilosHtml: hilosHtml };
-
                 _renderTooltipConSilenciados();
-
-                // Añadir hilos al final del tooltip siempre (no son descartables)
-                if (hilosHtml) ttc.innerHTML += hilosHtml;
 
                 // Indicador visual — respeta silenciados
                 _actualizarIndicadorConSilenciados();
@@ -712,7 +710,7 @@
                 dot.className = 'offline';
                 txt.className = 'offline';
                 txt.textContent = '○ Offline';
-                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot red"></div><span style="color:#f85149;">Sin respuesta del servidor</span></div>';
+                ttc.innerHTML = '<div class="tt-item"><div class="tt-dot red"></div><span style="color:#ff0d00;">Sin respuesta del servidor</span></div>';
                 document.getElementById('tt-footer').style.display = 'none';
             }
         }
@@ -759,11 +757,11 @@
             type:'line', data:{labels:Array(20).fill(''), datasets:[{data:Array(20).fill(0), borderColor:color, borderWidth:2, fill:true, backgroundColor:color+'22', tension:0.4, pointRadius:0}]},
             options:{animation:false, plugins:{legend:{display:false}}, scales:{x:{display:false}, y:{display:false, min:0}}}
         });
-        const cpuChart = makeChart('cpu-chart','#58a6ff');
-        const ramChart = makeChart('ram-chart','#3fb950');
+        const cpuChart = makeChart('cpu-chart','#0066ff');
+        const ramChart = makeChart('ram-chart','#00ff22');
         const netChart = new Chart(document.getElementById('net-chart'), {
             type:'line', data:{labels:Array(20).fill(''), datasets:[
-                {label:'▼', data:Array(20).fill(0), borderColor:'#3fb950', borderWidth:2, fill:false, tension:0.4, pointRadius:0},
+                {label:'▼', data:Array(20).fill(0), borderColor:'#0cd51e', borderWidth:2, fill:false, tension:0.4, pointRadius:0},
                 {label:'▲', data:Array(20).fill(0), borderColor:'#f78166', borderWidth:2, fill:false, tension:0.4, pointRadius:0}
             ]}, options:{animation:false, plugins:{legend:{display:true, labels:{color:'#8b949e', boxWidth:12}}}, scales:{x:{display:false}, y:{display:true, ticks:{color:'#8b949e'}, grid:{color:'#21262d'}}}}
         });
@@ -833,13 +831,13 @@
                 const restante = Math.max(total-usado, 0);
                 const modelo = d.modelo || 'openrouter/free';
                 const nombreCorto = modelo.split('/').pop().replace(':free','').replace('-instruct','');
-                const colorTotal = pct>=90 ? '#f85149' : pct>=70 ? '#d29922' : '#58a6ff';
+                const colorTotal = pct>=90 ? '#ff0d00' : pct>=70 ? '#ffd000' : '#0066ff';
                 document.getElementById('ia-tokens-used').textContent   = usado.toLocaleString();
                 document.getElementById('ia-tokens-sub').textContent    = `de ${total.toLocaleString()} hoy`;
                 document.getElementById('ia-tokens-web').textContent    = web.toLocaleString();
                 document.getElementById('ia-tokens-discord').textContent= disc.toLocaleString();
                 document.getElementById('ia-tokens-rest').textContent   = restante.toLocaleString();
-                document.getElementById('ia-tokens-rest').style.color   = pct>=90?'#f85149':pct>=70?'#d29922':'#3fb950';
+                document.getElementById('ia-tokens-rest').style.color   = pct>=90?'#ff0d00':pct>=70?'#ffd000':'#0cd51e';
                 document.getElementById('ia-bar-web').style.width     = pctWeb+'%';
                 document.getElementById('ia-bar-discord').style.width = pctDisc+'%';
                 document.getElementById('ia-modelo-nombre').textContent = nombreCorto;
@@ -880,8 +878,8 @@
                     return `<div class="tokens-hist-item">
                         <span class="tokens-hist-fecha">${h.fecha||''}${esHoy}</span>
                         <div class="tokens-hist-bars">
-                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctWeb}%;background:#58a6ff;"></div><span style="font-size:10px;color:#58a6ff;">${(h.web||0).toLocaleString()}</span></div>
-                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctDisc}%;background:#bc8cff;"></div><span style="font-size:10px;color:#bc8cff;">${(h.discord||0).toLocaleString()}</span></div>
+                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctWeb}%;background:#0066ff;"></div><span style="font-size:10px;color:#0066ff;">${(h.web||0).toLocaleString()}</span></div>
+                            <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctDisc}%;background:#915ddb;"></div><span style="font-size:10px;color:#915ddb;">${(h.discord||0).toLocaleString()}</span></div>
                             ${modelo ? `<div class="tokens-hist-modelo">${modelo}</div>` : ''}
                         </div>
                         <span class="tokens-hist-num">${(h.total||0).toLocaleString()}</span>
@@ -905,8 +903,8 @@
                 document.getElementById('v-intervalo-min').textContent = `= ${Math.round((d.intervalo||300)/60)} min`;
                 actualizarToggleBtn(d.activo);
                 const barVig = document.getElementById('bar-vigilante-status');
-                if (d.activo) { barVig.textContent = '🛡️ Vigilante activo'; barVig.style.color = '#3fb950'; }
-                else          { barVig.textContent = '⏸️ Vigilante pausado'; barVig.style.color = '#d29922'; }
+                if (d.activo) { barVig.textContent = '🛡️ Vigilante activo'; barVig.style.color = '#0cd51e'; }
+                else          { barVig.textContent = '⏸️ Vigilante pausado'; barVig.style.color = '#ffd000'; }
             } catch(e) {}
         }
         function actualizarToggleBtn(activo) {
@@ -997,7 +995,7 @@
                     else cats.sistema++;
                 });
                 const total = Object.values(cats).reduce((a,b)=>a+b,0) || 1;
-                [['sistema','#58a6ff'],['media','#3fb950'],['docker','#bc8cff'],['cmd','#d29922'],['ha','#f78166']].forEach(([k,c]) => {
+                [['sistema','#0066ff'],['media','#0cd51e'],['docker','#915ddb'],['cmd','#ffd000'],['ha','#f78166']].forEach(([k,c]) => {
                     const pct = Math.round((cats[k]/total)*100);
                     document.getElementById(`bar-${k}`).style.width      = pct+'%';
                     document.getElementById(`bar-${k}`).style.background = c;
@@ -1115,7 +1113,7 @@
             try {
                 const res  = await fetch('/consola/permisos'); const data = await res.json(); const lista = document.getElementById('permisos-lista'); const usuarios = data.usuarios || [];
                 if (!usuarios.length) { lista.innerHTML = '<div class="empty-state">Sin usuarios adicionales autorizados</div>'; return; }
-                lista.innerHTML = usuarios.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#000000;border:1px solid #21262d;border-radius:6px;border-left:3px solid #58a6ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${u.nombre||'Sin nombre'}</span><span style="color:#8b949e;margin-left:8px;">${u.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">desde ${u.agregado||''}</span></div><button onclick="quitarPermisoConsola(${u.id})" style="background:#3d1f1f;color:#f85149;border:1px solid #f85149;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Quitar</button></div>`).join('');
+                lista.innerHTML = usuarios.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#000000;border:1px solid #21262d;border-radius:6px;border-left:3px solid #0066ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${u.nombre||'Sin nombre'}</span><span style="color:#8b949e;margin-left:8px;">${u.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">desde ${u.agregado||''}</span></div><button onclick="quitarPermisoConsola(${u.id})" style="background:#3d1f1f;color:#ff0d00;border:1px solid #ff0d00;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Quitar</button></div>`).join('');
             } catch(e) { document.getElementById('permisos-lista').innerHTML = '<div class="empty-state">Endpoint no disponible</div>'; }
         }
         async function agregarPermisoConsola() {
