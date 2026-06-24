@@ -1329,12 +1329,12 @@
             chat.querySelectorAll('.mensaje').forEach(el => {
                 msgs.push({ tipo: el.classList.contains('usuario') ? 'usuario' : 'asistente', texto: el.textContent });
             });
-            try { localStorage.setItem('jarvis_chat', JSON.stringify(msgs)); } catch(e) {}
+            try { sessionStorage.setItem('jarvis_chat', JSON.stringify(msgs)); } catch(e) {}
         }
 
         function _cargarChat() {
             try {
-                const raw = localStorage.getItem('jarvis_chat');
+                const raw = sessionStorage.getItem('jarvis_chat');
                 if (!raw) return;
                 const msgs = JSON.parse(raw);
                 if (!msgs.length) return;
