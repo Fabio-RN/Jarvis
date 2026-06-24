@@ -10,10 +10,9 @@
         #header { padding:15px 20px; border-bottom:1px solid #121212; font-size:18px; color:#0066ff; display:flex; align-items:center; justify-content:space-between; }
         #tabs { display:flex; border-bottom:1px solid #121212; overflow-x:auto;}
         .tab { padding:10px 20px; cursor:pointer; color:#8b949e; position:relative; white-space:nowrap; font-size:13px; transition:color 0.5s; }
-        .tab::after{content:''; position:absolute; bottom:0; left:0; width:0; height:2px; background:#2761ff; transition:width 0.35s cubic-bezier(0.4,0,0.2,1), left 0.35s cubic-bezier(0.4,0,0.2,1); }
+        .tab::after{content:''; position:absolute; bottom:0; left:50%; width:0; height:2px; background:#2761ff; transition:all 0.5s; transform:translateX(-50%); }
         .tab.active { color:#1f53ff}
-        .tab.active::after { width:100%; left:0; }
-        .tab:hover { color:#c9d1d9; }
+        .tab.active::after { width:100%; }
         #content { flex:1; overflow:hidden; display:flex; flex-direction:column; }
         #panel-chat { flex:1; display:flex; flex-direction:column; overflow:hidden; }
         #panel-dashboard,#panel-historial,#panel-logs,#panel-ia,#panel-consola { flex:1; overflow-y:auto; padding:20px; display:none; }
@@ -757,13 +756,15 @@
             const th = document.createElement('div'); th.className = 'mensaje asistente';
             th.innerHTML = _typingHTML();
             chat.appendChild(th); chat.scrollTop = chat.scrollHeight;
+            _guardarChat();
             try {
                 const res  = await fetch('/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({texto})});
                 const data = await res.json();
                 th.textContent = data.respuesta;
+                _guardarChat();
                 actualizarTokens();
                 setTimeout(cargarActividad, 1500);
-            } catch(e) { th.textContent = '❌ Error al conectar con Jarvis.'; }
+            } catch(e) { th.textContent = '❌ Error al conectar con Jarvis.'; _guardarChat(); }
         }
 
         // ── Dashboard ─────────────────────────────────────────────────
@@ -1322,17 +1323,26 @@
             consolaEscribir('', 'info-line');
         })();
 
-        // ── Cargar historial del server al iniciar ──────────────────────
-        async function cargarHistorialChat() {
+        // ── Cargar chat desde localStorage ───────────────────────────
+        function _guardarChat() {
+            const msgs = [];
+            chat.querySelectorAll('.mensaje').forEach(el => {
+                msgs.push({ tipo: el.classList.contains('usuario') ? 'usuario' : 'asistente', texto: el.textContent });
+            });
+            try { localStorage.setItem('jarvis_chat', JSON.stringify(msgs)); } catch(e) {}
+        }
+
+        function _cargarChat() {
             try {
-                const res  = await fetch('/historial'); const data = await res.json();
-                const msgs = data.historial || [];
+                const raw = localStorage.getItem('jarvis_chat');
+                if (!raw) return;
+                const msgs = JSON.parse(raw);
                 if (!msgs.length) return;
                 _ocultarPlaceholder();
                 msgs.forEach(m => {
                     const div = document.createElement('div');
-                    div.className = 'mensaje ' + (m.role === 'user' ? 'usuario' : 'asistente');
-                    div.textContent = m.content;
+                    div.className = 'mensaje ' + m.tipo;
+                    div.textContent = m.texto;
                     chat.appendChild(div);
                 });
                 chat.scrollTop = chat.scrollHeight;
@@ -1351,7 +1361,7 @@
         actualizarDashboard();
         actualizarTokens();
         actualizarEstado();
-        cargarHistorialChat();
+        _cargarChat();
     </script>
 </body>
 </html>
