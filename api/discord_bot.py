@@ -229,10 +229,17 @@ async def on_message(message):
         await message.channel.send("Archivo enviado.")
         return
 
-    # Cualquier otro mensaje → Jarvis
+    # Cualquier otro mensaje → solo si es mencionado con @
+    if not bot.user.mentioned_in(message):
+        return
+
+    texto = texto.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
+    if not texto:
+        await message.channel.send("")
+        return
+
     async with message.channel.typing():
         respuesta, historial_discord, tokens = procesar(texto, historial_discord, origen="discord")
-    # FIX: guardar tokens del canal también
     tokens_db.agregar(tokens, origen="discord")
     await message.channel.send(respuesta[:2000])
 

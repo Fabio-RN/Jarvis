@@ -1,17 +1,17 @@
 """
-Entrypoint de Jarvis.
-- Hilo 1: bot de Discord
-- Hilo 2: vigilante
-- Hilo 3: reparador
-- Hilo 4: watchdog (daemon)
-- Hilo principal: uvicorn en puerto 8888
+Jarvis entrypoint.
+- Thread 1: Discord bot
+- Thread 2: watchdog agent
+- Thread 3: repair agent
+- Thread 4: thread watchdog (daemon)
+- Main thread: uvicorn on port 8888
 
-Registro de hilos:
-  Todos los hilos se registran en api.server via register_hilo()
-  para que GET /health pueda consultarlos sin importar main.
-  El watchdog usa su propio dict local _hilos_monitoreados para
-  poder reiniciarlos, pero también actualiza el registro de server.py
-  cada vez que reinicia un hilo.
+Thread registry:
+  All threads are registered in api.server via register_hilo()
+  so GET /health can query them regardless of main.
+  The thread watchdog uses its own local dict _hilos_monitoreados
+  to restart them, but also updates server.py's registry
+  every time it restarts a thread.
 """
 
 import threading
@@ -20,15 +20,15 @@ import uvicorn
 
 from core.config import IP
 
-# ── Dict local del watchdog ───────────────────────────────────────────
-# Separado de _hilos_registrados en server.py para evitar import circular.
-# Se sincroniza con server.py via register_hilo() cada vez que se crea
-# o reinicia un hilo.
+# ── Watchdog local dict ───────────────────────────────────────────
+# Separated from _hilos_registrados in server.py to avoid circular import.
+# Syncs with server.py via register_hilo() every time a thread is
+# created or restarted.
 
 _hilos_monitoreados: dict[str, threading.Thread] = {}
 
 
-# ── Funciones de arranque de cada componente ──────────────────────────
+# ── Component startup functions ──────────────────────────────────
 
 def _start_discord():
     from api.discord_bot import run_bot
@@ -50,7 +50,7 @@ def _start_reparador():
 # ── Helpers ───────────────────────────────────────────────────────────
 
 def _crear_hilo(nombre: str, fn) -> threading.Thread:
-    """Crea, arranca y registra un hilo en server.py."""
+    """Creates, starts and registers a thread in server.py."""
     from api.server import register_hilo
     t = threading.Thread(target=fn, name=nombre, daemon=True)
     t.start()
@@ -59,7 +59,7 @@ def _crear_hilo(nombre: str, fn) -> threading.Thread:
 
 
 def _reiniciar_hilo(nombre: str):
-    """Reinicia un hilo monitoreado y actualiza ambos registros."""
+    """Restarts a monitored thread and updates both registries."""
     fabricas = {
         "discord":   _start_discord,
         "vigilante": _start_vigilante,
@@ -77,10 +77,10 @@ def _reiniciar_hilo(nombre: str):
 
 def _watchdog():
     """
-    Revisa cada 60s si los hilos siguen vivos.
-    Si alguno cae, intenta reiniciarlo hasta 2 veces.
-    Espera 90s al arranque para que Discord esté listo antes
-    de intentar enviar DMs.
+    Checks every 60s if threads are still alive.
+    If one dies, tries to restart it up to 2 times.
+    Waits 90s at startup so Discord is ready before
+    attempting to send DMs.
     """
     time.sleep(90)
 
@@ -92,7 +92,7 @@ def _watchdog():
 
             for nombre, hilo in list(_hilos_monitoreados.items()):
                 if hilo.is_alive():
-                    # Hilo vivo — resetear contador de reintentos
+                    # Thread alive — reset retry counter
                     _reintentos.pop(nombre, None)
                     continue
 
@@ -122,7 +122,7 @@ def _watchdog():
                         )
 
                 elif intentos < 99:
-                    # Solo avisa una vez que superó los 2 intentos
+                    # Only warns once after exceeding 2 attempts
                     notificar_dm(
                         f"🔴 **Jarvis Watchdog** — "
                         f"`{nombre}` sigue caído tras 2 intentos. "
@@ -140,34 +140,34 @@ def _watchdog():
 
 if __name__ == "__main__":
 
-    print("[Jarvis] Arrancando...")
+    print("[Jarvis] Starting...")
 
-    # Importar app primero para que register_hilo esté disponible
+    # Import app first so register_hilo is available
     from api.server import app
 
     # ── Discord
     t_discord = _crear_hilo("discord", _start_discord)
     _hilos_monitoreados["discord"] = t_discord
-    print("[Jarvis] Hilo Discord arrancado.")
+    print("[Jarvis] Discord thread started.")
 
-    # Esperar conexión inicial de Discord antes de arrancar el resto
+    # Wait for initial Discord connection before starting the rest
     time.sleep(5)
 
     # ── Vigilante
     t_vigilante = _crear_hilo("vigilante", _start_vigilante)
     _hilos_monitoreados["vigilante"] = t_vigilante
-    print("[Jarvis] Hilo Vigilante arrancado.")
+    print("[Jarvis] Vigilante thread started.")
 
     # ── Reparador
     t_reparador = _crear_hilo("reparador", _start_reparador)
     _hilos_monitoreados["reparador"] = t_reparador
-    print("[Jarvis] Hilo Reparador arrancado.")
+    print("[Jarvis] Reparador thread started.")
 
     # ── Watchdog
     t_watchdog = threading.Thread(target=_watchdog, name="watchdog", daemon=True)
     t_watchdog.start()
-    # El watchdog no se registra en health ni se monitorea a sí mismo
-    print("[Jarvis] Watchdog arrancado.")
+    # Watchdog is not registered in health and does not monitor itself
+    print("[Jarvis] Watchdog started.")
 
     # ── FastAPI / uvicorn
     print(f"[Jarvis] API en http://{IP}:8888")
