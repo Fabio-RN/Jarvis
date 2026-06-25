@@ -151,6 +151,7 @@ sudo systemctl status jarvis             # Check status
 sudo systemctl restart jarvis            # Restart
 journalctl -u jarvis -f                  # Live logs
 journalctl -u jarvis --no-pager -n 100   # Last 100 lines
+sudo systemctl restart jarvis && sudo journalctl -u jarvis -f # Restart jarvis and see the status / logs live 
 ```
 
 ---
