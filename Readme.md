@@ -332,11 +332,11 @@ The watchdog agent uses `nemotron-nano-8b` as its auxiliary model.
 
 ## 📝 Changelog
 
-**V3.5** — Interactive web console, dynamic status indicator, `/health` with severity levels, real KB/s in `/stats`, `@mention`-only in Discord channels, typing dots animation, session-persistent chat
+**V3.5** — Interactive web console with quick-action buttons and destructive command confirmation. Dynamic status indicator in header with dismissible tooltip. `/health` endpoint with differentiated severity levels (`ok / warn / critical`). Real KB/s calculation in `/stats`. `@mention`-only response in Discord server channels (DMs still respond to everything). Animated typing dots while waiting for LLM response. Session-persistent chat via `sessionStorage` (survives refresh, clears on tab close). Centered placeholder in empty chat. `install.sh` automated installer with venv and systemd setup.
 
-**V3.4** — Separate history per origin (web/discord/dm), thread watchdog, Discord console permissions, improved log panel, more specific repairer diagnosis
+**V3.4** — Separate conversation history per origin (web/discord/dm). Thread watchdog that monitors and auto-restarts crashed threads with DM notifications. Discord console permissions manageable from the web UI. Improved log panel with auto-refresh and configurable interval. More specific repairer diagnosis with error line extraction and suggested fixes.
 
-**V3** — Full rewrite: from a reactive chatbot to an agent with real tools. Modular architecture: `core/`, `tools/`, `agente/`, `api/`
+**V3** — Full rewrite: from a reactive chatbot to an agent with real tool-calling. Modular architecture split into `core/`, `tools/`, `agente/`, `api/`. Automatic LLM model fallback via OpenRouter. Proactive watchdog with configurable thresholds. Auto-repair agent with config vs transient error classification.
 
 ---
 
