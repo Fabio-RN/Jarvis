@@ -1,16 +1,16 @@
 TOOLS = [
-    # ── Sistema ───────────────────────────────────────────────────────
+    # ── System ───────────────────────────────────────────────────────
     {
         "type": "function",
         "function": {
-            "name": "ejecutar_comando",
+            "name": "run_command",
             "description": (
-                "Ejecuta un comando bash en el servidor Linux. "
-                "Usá para: ver logs ('docker logs --tail 50 <nombre>'), "
-                "leer archivos de config ('cat /ruta/archivo.yml'), "
-                "ver procesos, espacio, puertos, errores de systemd, etc. "
-                "Soporta pipes, grep, awk, find y cualquier comando bash. "
-                "Ejemplos: 'docker logs --tail 30 jellyfin', "
+                "Execute a bash command on the Linux server. "
+                "Use for: viewing logs ('docker logs --tail 50 <name>'), "
+                "reading config files ('cat /path/file.yml'), "
+                "checking processes, disk space, ports, systemd errors, etc. "
+                "Supports pipes, grep, awk, find and any bash command. "
+                "Examples: 'docker logs --tail 30 jellyfin', "
                 "'cat /srv/nas/docker/n8n/docker-compose.yml', "
                 "'ss -tlnp | grep LISTEN', 'df -h', 'ps aux --sort=-%cpu | head -10', "
                 "'journalctl -u jarvis --since today', 'find /srv -name \"*.log\" -mtime -1'"
@@ -18,17 +18,17 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "comando": {"type": "string", "description": "Comando bash a ejecutar"}
+                    "command": {"type": "string", "description": "Bash command to execute"}
                 },
-                "required": ["comando"]
+                "required": ["command"]
             }
         }
     },
     {
         "type": "function",
         "function": {
-            "name": "info_sistema",
-            "description": "CPU, RAM, disco, temperatura y red en tiempo real. Usá primero al diagnosticar.",
+            "name": "system_info",
+            "description": "CPU, RAM, disk, temperature and network in real time. Use first when diagnosing.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -38,11 +38,11 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "docker_restart",
-            "description": "⚠️ SOLO usar cuando el usuario lo pida EXPLÍCITAMENTE: 'reinicia', 'restart'. NUNCA para diagnóstico.",
+            "description": "⚠️ ONLY use when the user EXPLICITLY asks: 'restart', 'reboot'. NEVER for diagnosis.",
             "parameters": {
                 "type": "object",
-                "properties": {"nombre": {"type": "string"}},
-                "required": ["nombre"]
+                "properties": {"name": {"type": "string"}},
+                "required": ["name"]
             }
         }
     },
@@ -50,7 +50,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "docker_compose_up",
-            "description": "⚠️ SOLO cuando el usuario diga 'enciende', 'levanta', 'sube todo', 'iniciar todos'. NUNCA automáticamente.",
+            "description": "⚠️ ONLY when the user says 'start', 'bring up', 'up all', 'start everything'. NEVER automatically.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -58,7 +58,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "docker_compose_down",
-            "description": "⚠️ SOLO cuando el usuario diga 'apaga', 'baja', 'detén todos'. NUNCA automáticamente.",
+            "description": "⚠️ ONLY when the user says 'shut down', 'take down', 'stop all'. NEVER automatically.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -67,70 +67,70 @@ TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "enviar_discord",
-            "description": "Manda mensaje al canal público de Discord.",
+            "name": "send_discord",
+            "description": "Send a message to the public Discord channel.",
             "parameters": {
                 "type": "object",
-                "properties": {"mensaje": {"type": "string"}},
-                "required": ["mensaje"]
+                "properties": {"message": {"type": "string"}},
+                "required": ["message"]
             }
         }
     },
     {
         "type": "function",
         "function": {
-            "name": "enviar_dm",
-            "description": "Manda DM privado al dueño. Para alertas críticas.",
+            "name": "send_dm",
+            "description": "Send a private DM to the owner. For critical alerts.",
             "parameters": {
                 "type": "object",
-                "properties": {"mensaje": {"type": "string"}},
-                "required": ["mensaje"]
+                "properties": {"message": {"type": "string"}},
+                "required": ["message"]
             }
         }
     },
 
-    # ── Sitios web ────────────────────────────────────────────────────
+    # ── Web sites ────────────────────────────────────────────────────
     {
         "type": "function",
         "function": {
-            "name": "detectar_sitios",
-            "description": "Detecta todos los servicios web corriendo en el servidor (puertos activos, nginx, apps, etc.).",
+            "name": "detect_sites",
+            "description": "Detect all web services running on the server (active ports, nginx, apps, etc.).",
             "parameters": {"type": "object", "properties": {}}
         }
     },
     {
         "type": "function",
         "function": {
-            "name": "get_contadores_dias",
-            "description": "Lee los contadores de días del servidor (contador en puerto 8082). Muestra días restantes o transcurridos para cada evento configurado.",
+            "name": "get_day_counters",
+            "description": "Read day counters from the server (counter on port 8082). Shows remaining or elapsed days for each configured event.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
 
     # ── Media ─────────────────────────────────────────────────────────
-    {"type":"function","function":{"name":"jellyseerr_buscar","description":"Busca películas o series en Jellyseerr.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
-    {"type":"function","function":{"name":"jellyseerr_requests_pendientes","description":"Requests pendientes en Jellyseerr.","parameters":{"type":"object","properties":{}}}},
-    {"type":"function","function":{"name":"jellyseerr_aprobar","description":"Aprueba un request en Jellyseerr.","parameters":{"type":"object","properties":{"request_id":{"type":"integer"}},"required":["request_id"]}}},
-    {"type":"function","function":{"name":"radarr_buscar","description":"Busca películas en Radarr.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
-    {"type":"function","function":{"name":"radarr_estado","description":"Estado de la biblioteca de Radarr.","parameters":{"type":"object","properties":{}}}},
-    {"type":"function","function":{"name":"sonarr_buscar","description":"Busca series en Sonarr.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
-    {"type":"function","function":{"name":"sonarr_estado","description":"Estado de la biblioteca de Sonarr.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"jellyseerr_search","description":"Search for movies or series in Jellyseerr.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
+    {"type":"function","function":{"name":"jellyseerr_pending_requests","description":"Pending requests in Jellyseerr.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"jellyseerr_approve","description":"Approve a request in Jellyseerr.","parameters":{"type":"object","properties":{"request_id":{"type":"integer"}},"required":["request_id"]}}},
+    {"type":"function","function":{"name":"radarr_search","description":"Search for movies in Radarr.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
+    {"type":"function","function":{"name":"radarr_status","description":"Radarr library status.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"sonarr_search","description":"Search for series in Sonarr.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}},
+    {"type":"function","function":{"name":"sonarr_status","description":"Sonarr library status.","parameters":{"type":"object","properties":{}}}},
 
-    # ── Descargas ─────────────────────────────────────────────────────
-    {"type":"function","function":{"name":"qbit_estado","description":"Torrents activos en qBittorrent.","parameters":{"type":"object","properties":{}}}},
-    {"type":"function","function":{"name":"qbit_pausar","description":"Pausa un torrent por nombre.","parameters":{"type":"object","properties":{"nombre":{"type":"string"}},"required":["nombre"]}}},
-    {"type":"function","function":{"name":"qbit_reanudar","description":"Reanuda un torrent por nombre.","parameters":{"type":"object","properties":{"nombre":{"type":"string"}},"required":["nombre"]}}},
+    # ── Downloads ─────────────────────────────────────────────────────
+    {"type":"function","function":{"name":"qbit_status","description":"Active torrents in qBittorrent.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"qbit_pause","description":"Pause a torrent by name.","parameters":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}}},
+    {"type":"function","function":{"name":"qbit_resume","description":"Resume a torrent by name.","parameters":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}}},
 
     # ── Jellyfin ──────────────────────────────────────────────────────
-    {"type":"function","function":{"name":"jellyfin_usuarios_conectados","description":"Quién está reproduciendo algo en Jellyfin.","parameters":{"type":"object","properties":{}}}},
-    {"type":"function","function":{"name":"jellyfin_estado_biblioteca","description":"Películas, series y episodios en Jellyfin.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"jellyfin_connected_users","description":"Who is playing something on Jellyfin.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"jellyfin_library_status","description":"Movies, series and episodes in Jellyfin.","parameters":{"type":"object","properties":{}}}},
 
     # ── Home Assistant ────────────────────────────────────────────────
-    {"type":"function","function":{"name":"ha_estado_entidades","description":"Estado de entidades de Home Assistant.","parameters":{"type":"object","properties":{}}}},
-    {"type":"function","function":{"name":"ha_ejecutar_servicio","description":"Ejecuta un servicio de Home Assistant. Solo cuando el usuario lo pida.","parameters":{"type":"object","properties":{"dominio":{"type":"string"},"servicio":{"type":"string"},"entity_id":{"type":"string"}},"required":["dominio","servicio","entity_id"]}}},
+    {"type":"function","function":{"name":"ha_entity_status","description":"Home Assistant entity states.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"ha_execute_service","description":"Execute a Home Assistant service. Only when the user asks.","parameters":{"type":"object","properties":{"domain":{"type":"string"},"service":{"type":"string"},"entity_id":{"type":"string"}},"required":["domain","service","entity_id"]}}},
 
-    # ── Automatización ────────────────────────────────────────────────
-    {"type":"function","function":{"name":"n8n_listar_workflows","description":"Workflows de n8n y su estado.","parameters":{"type":"object","properties":{}}}},
-    {"type":"function","function":{"name":"n8n_ejecutar_webhook","description":"Ejecuta un webhook de n8n.","parameters":{"type":"object","properties":{"webhook_url":{"type":"string"}},"required":["webhook_url"]}}},
-    {"type":"function","function":{"name":"fb_listar_archivos","description":"Lista archivos en Filebrowser.","parameters":{"type":"object","properties":{"ruta":{"type":"string"}}}}},
+    # ── Automation ────────────────────────────────────────────────────
+    {"type":"function","function":{"name":"n8n_list_workflows","description":"n8n workflows and their status.","parameters":{"type":"object","properties":{}}}},
+    {"type":"function","function":{"name":"n8n_execute_webhook","description":"Execute an n8n webhook.","parameters":{"type":"object","properties":{"webhook_url":{"type":"string"}},"required":["webhook_url"]}}},
+    {"type":"function","function":{"name":"fb_list_files","description":"List files in Filebrowser.","parameters":{"type":"object","properties":{"path":{"type":"string"}}}}},
 ]

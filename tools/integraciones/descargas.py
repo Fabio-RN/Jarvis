@@ -9,42 +9,42 @@ def _login():
     return session
 
 
-def qbit_estado():
+def qbit_status():
     try:
         session = _login()
         torrents = session.get(f"{QBIT_URL}/api/v2/torrents/info", timeout=10).json()
         if not torrents:
-            return "No hay torrents activos."
+            return "No active torrents."
         out = []
         for t in torrents[:10]:
-            progreso = round(t.get("progress", 0) * 100, 1)
-            out.append(f"{t.get('name','?')[:40]} — {progreso}% — {t.get('state','?')}")
+            progress = round(t.get("progress", 0) * 100, 1)
+            out.append(f"{t.get('name','?')[:40]} — {progress}% — {t.get('state','?')}")
         return "\n".join(out)
     except Exception as e:
         return f"Error qBit: {e}"
 
 
-def qbit_pausar(nombre):
+def qbit_pause(name):
     try:
         session = _login()
         torrents = session.get(f"{QBIT_URL}/api/v2/torrents/info", timeout=10).json()
         for t in torrents:
-            if nombre.lower() in t.get("name", "").lower():
+            if name.lower() in t.get("name", "").lower():
                 session.post(f"{QBIT_URL}/api/v2/torrents/pause", data={"hashes": t["hash"]})
-                return f"Torrent '{t['name']}' pausado."
-        return "No se encontró el torrent."
+                return f"Torrent '{t['name']}' paused."
+        return "Torrent not found."
     except Exception as e:
         return f"Error qBit: {e}"
 
 
-def qbit_reanudar(nombre):
+def qbit_resume(name):
     try:
         session = _login()
         torrents = session.get(f"{QBIT_URL}/api/v2/torrents/info", timeout=10).json()
         for t in torrents:
-            if nombre.lower() in t.get("name", "").lower():
+            if name.lower() in t.get("name", "").lower():
                 session.post(f"{QBIT_URL}/api/v2/torrents/resume", data={"hashes": t["hash"]})
-                return f"Torrent '{t['name']}' reanudado."
-        return "No se encontró el torrent."
+                return f"Torrent '{t['name']}' resumed."
+        return "Torrent not found."
     except Exception as e:
         return f"Error qBit: {e}"

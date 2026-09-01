@@ -7,13 +7,13 @@ from datetime import datetime
 
 def get_system_info():
     mem   = psutil.virtual_memory()
-    disco = psutil.disk_usage('/')
+    disk  = psutil.disk_usage('/')
     net   = psutil.net_io_counters()
     info  = (
         f"CPU: {psutil.cpu_percent()}% | "
         f"RAM: {mem.percent}% ({round(mem.used/1024**3,1)}GB/{round(mem.total/1024**3,1)}GB) | "
-        f"Disco: {disco.percent}% ({round(disco.free/1024**3,1)}GB libre) | "
-        f"Red: ↑{round(net.bytes_sent/1024**2,1)}MB ↓{round(net.bytes_recv/1024**2,1)}MB"
+        f"Disk: {disk.percent}% ({round(disk.free/1024**3,1)}GB free) | "
+        f"Net: ↑{round(net.bytes_sent/1024**2,1)}MB ↓{round(net.bytes_recv/1024**2,1)}MB"
     )
     try:
         temps = psutil.sensors_temperatures()
@@ -31,49 +31,48 @@ def get_containers():
             "docker ps -a --format '{{.Names}}|{{.Status}}'",
             shell=True, capture_output=True, text=True, timeout=10
         )
-        contenedores = []
-        for linea in result.stdout.strip().split("\n"):
-            if "|" in linea:
-                nombre, estado = linea.split("|", 1)
-                contenedores.append({
-                    "nombre": nombre.strip(),
-                    "estado": "running" if estado.startswith("Up") else "stopped"
+        containers = []
+        for line in result.stdout.strip().split("\n"):
+            if "|" in line:
+                name, status = line.split("|", 1)
+                containers.append({
+                    "name": name.strip(),
+                    "status": "running" if status.startswith("Up") else "stopped"
                 })
-        return contenedores
+        return containers
     except:
         return []
 
 
-def run_command(cmd, origen="chat"):
-    """Ejecuta un comando bash y loguea el resultado. Bug del return original corregido."""
+def run_command(cmd, origin="chat"):
     try:
         result = subprocess.run(
             cmd, shell=True, capture_output=True, text=True, timeout=15
         )
-        output = (result.stdout + result.stderr).strip() or "Comando ejecutado sin salida."
+        output = (result.stdout + result.stderr).strip() or "Command executed with no output."
     except Exception as e:
         output = f"Error: {str(e)}"
-    _log_comando(cmd, origen, output)
+    _log_command(cmd, origin, output)
     return output
 
 
-def _log_comando(cmd, origen, output=""):
-    from core.config import COMANDOS_LOG
-    entrada = {
-        "comando": cmd,
-        "origen": origen,
+def _log_command(cmd, origin, output=""):
+    from core.config import COMMANDS_LOG
+    entry = {
+        "command": cmd,
+        "origin": origin,
         "output_preview": output[:100],
-        "hora": datetime.now().strftime("%H:%M:%S %d/%m/%Y")
+        "time": datetime.now().strftime("%H:%M:%S %d/%m/%Y")
     }
     logs = []
-    if os.path.exists(COMANDOS_LOG):
-        with open(COMANDOS_LOG) as f:
+    if os.path.exists(COMMANDS_LOG):
+        with open(COMMANDS_LOG) as f:
             try:
                 logs = json.load(f)
             except:
                 logs = []
-    logs.insert(0, entrada)
-    with open(COMANDOS_LOG, "w") as f:
+    logs.insert(0, entry)
+    with open(COMMANDS_LOG, "w") as f:
         json.dump(logs[:200], f, ensure_ascii=False)
 
 

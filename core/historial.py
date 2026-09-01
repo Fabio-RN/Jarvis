@@ -1,35 +1,31 @@
 """
-Historial de conversación con soporte de origen separado.
-- web      → historial_web.json
-- discord  → historial_discord.json
-- dm       → historial_dm.json
-- (vacío)  → historial.json  ← compatibilidad con código viejo
+Conversation history with per-origin support.
+- web      → history_web.json
+- discord  → history_discord.json
+- dm       → history_dm.json
+- (empty)  → historial.json  ← legacy
 """
 import json
 import os
 from core.config import DATA_DIR
 
-# Máximo de turnos que se persisten en disco por origen
-MAX_TURNOS = 200
+MAX_TURNS = 200
+MAX_RECENT = 20
 
-# Máximo de turnos recientes que se mandan al modelo
-MAX_RECIENTE = 20
-
-_ARCHIVOS = {
-    "web":     os.path.join(DATA_DIR, "historial_web.json"),
-    "discord": os.path.join(DATA_DIR, "historial_discord.json"),
-    "dm":      os.path.join(DATA_DIR, "historial_dm.json"),
-    "":        os.path.join(DATA_DIR, "historial.json"),   # legado
+_FILES = {
+    "web":     os.path.join(DATA_DIR, "history_web.json"),
+    "discord": os.path.join(DATA_DIR, "history_discord.json"),
+    "dm":      os.path.join(DATA_DIR, "history_dm.json"),
+    "":        os.path.join(DATA_DIR, "historial.json"),
 }
 
 
-def _archivo(origen: str = "") -> str:
-    return _ARCHIVOS.get(origen, _ARCHIVOS[""])
+def _file(origin: str = "") -> str:
+    return _FILES.get(origin, _FILES[""])
 
 
-def cargar(origen: str = "") -> list:
-    """Carga el historial del origen indicado desde disco."""
-    path = _archivo(origen)
+def load(origin: str = "") -> list:
+    path = _file(origin)
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -39,29 +35,22 @@ def cargar(origen: str = "") -> list:
     return []
 
 
-def guardar(historial: list, origen: str = ""):
-    """Persiste el historial en disco, truncando a MAX_TURNOS."""
-    path = _archivo(origen)
+def save(history: list, origin: str = ""):
+    path = _file(origin)
     with open(path, "w") as f:
-        json.dump(historial[-MAX_TURNOS:], f, ensure_ascii=False, indent=2)
+        json.dump(history[-MAX_TURNS:], f, ensure_ascii=False, indent=2)
 
 
-def agregar(historial: list, rol: str, contenido: str, origen: str = "") -> list:
-    """
-    Agrega un turno al historial, lo persiste y devuelve la lista actualizada.
-    rol: 'user' | 'assistant'
-    """
-    historial = historial + [{"role": rol, "content": contenido}]
-    guardar(historial, origen)
-    return historial
+def add(history: list, role: str, content: str, origin: str = "") -> list:
+    history = history + [{"role": role, "content": content}]
+    save(history, origin)
+    return history
 
 
-def reciente(historial: list) -> list:
-    """Devuelve solo los últimos MAX_RECIENTE turnos para mandar al modelo."""
-    return historial[-MAX_RECIENTE:]
+def recent(history: list) -> list:
+    return history[-MAX_RECENT:]
 
 
-def limpiar(origen: str = "") -> list:
-    """Borra el historial del origen y devuelve lista vacía."""
-    guardar([], origen)
+def clear(origin: str = "") -> list:
+    save([], origin)
     return []

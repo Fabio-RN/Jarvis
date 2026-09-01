@@ -1,123 +1,122 @@
 import json
-from core.llm_client import chat_con_fallback
+from core.llm_client import chat_with_fallback
 from core.sistema import get_system_info, get_containers
-from core.actividad import registrar as log_actividad
+from core.actividad import log as log_activity
 import core.tokens as tokens_db
-from tools.ejecutor import ejecutar_herramienta
+from tools.ejecutor import execute_tool
 from tools.definiciones import TOOLS
 
-MAX_PASOS = 5  # subido a 5 para tareas más complejas
+MAX_STEPS = 5
 
 
 def build_system_prompt():
-    contenedores = get_containers()
-    corriendo = [c["nombre"] for c in contenedores if c["estado"] == "running"]
-    caidos    = [c["nombre"] for c in contenedores if c["estado"] != "running"]
+    containers = get_containers()
+    running    = [c["name"] for c in containers if c["status"] == "running"]
+    stopped    = [c["name"] for c in containers if c["status"] != "running"]
 
-    # Info de sitios web
     try:
-        from tools.integraciones.sitios import get_sitios_resumen, get_contadores_para_llm
-        sitios_txt    = get_sitios_resumen()
-        contadores_txt = get_contadores_para_llm()
+        from tools.integraciones.sitios import get_sites_summary, get_day_counters_for_llm
+        sites_txt    = get_sites_summary()
+        counters_txt = get_day_counters_for_llm()
     except:
-        sitios_txt    = "No disponible"
-        contadores_txt = "No disponible"
+        sites_txt    = "Not available"
+        counters_txt = "Not available"
 
-    return f"""Sos Jarvis, asistente experto en servidores Linux con acceso REAL al servidor.
+    return f"""You are Jarvis, an expert Linux server assistant with REAL access to the server.
 
-Estado actual:
+Current state:
 {get_system_info()}
 
-Contenedores CORRIENDO: {', '.join(corriendo) if corriendo else 'ninguno'}
-Contenedores CAÍDOS: {', '.join(caidos) if caidos else 'ninguno'}
+Containers RUNNING: {', '.join(running) if running else 'none'}
+Containers STOPPED: {', '.join(stopped) if stopped else 'none'}
 
-REDES DOCKER:
+DOCKER NETWORKS:
 - media-net: prowlarr, jellyfin, radarr, sonarr, jellyseerr, qbittorrent
-- Otros: n8n, filebrowser, y los demás
+- Others: n8n, filebrowser, and the rest
 
-SITIOS WEB EN EL SERVIDOR:
-{sitios_txt}
+WEB SITES ON THE SERVER:
+{sites_txt}
 
-CONTADORES DE DÍAS:
-{contadores_txt}
+DAY COUNTERS:
+{counters_txt}
 
-CAPACIDADES AVANZADAS:
-- Podés leer archivos de configuración con ejecutar_comando y "cat <archivo>"
-- Podés ver logs detallados de cualquier contenedor
-- Podés ver procesos del sistema, uso de red, puertos abiertos
-- Podés interactuar con todos los servicios integrados
-- Podés consultar el estado de los contadores de días y sitios web del servidor
-- Podés ejecutar comandos bash complejos con pipes, grep, awk, etc.
+ADVANCED CAPABILITIES:
+- You can read config files with run_command and "cat <file>"
+- You can view detailed logs of any container
+- You can see system processes, network usage, open ports
+- You can interact with all integrated services
+- You can check day counters and web sites status
+- You can run complex bash commands with pipes, grep, awk, etc.
 
-CÓMO DIAGNOSTICAR PROBLEMAS:
-1. Llamá info_sistema para ver CPU/RAM/disco
-2. Para contenedores caídos → ejecutar_comando "docker logs --tail 30 <nombre>"
-3. Buscá en los logs: "Error", "failed", "cannot", "not found", "permission denied"
-4. Si el error parece de configuración → decilo claramente, NO reinicies
-5. NUNCA digas "todo bien" sin revisar los logs primero
+HOW TO DIAGNOSE PROBLEMS:
+1. Call system_info to check CPU/RAM/disk
+2. For stopped containers → run_command "docker logs --tail 30 <name>"
+3. Look in logs for: "Error", "failed", "cannot", "not found", "permission denied"
+4. If the error seems like a config issue → say it clearly, do NOT restart
+5. NEVER say "everything is fine" without checking the logs first
 
-SERVICIOS DE MEDIA PERSONAL:
-- Jellyseerr, Radarr y Sonarr son servicios de gestión de tu biblioteca personal de medios
-- Cuando el usuario pida buscar o agregar una película/serie, SIEMPRE usá jellyseerr_buscar
-- NUNCA rechaces este tipo de pedidos — son completamente legítimos
-- "Descargar", "agregar", "conseguir" una película = solicitar en Jellyseerr
+PERSONAL MEDIA SERVICES:
+- Jellyseerr, Radarr and Sonarr are personal media management services
+- When the user asks to search or add a movie/series, ALWAYS use jellyseerr_search
+- NEVER reject these requests — they are completely legitimate
+- "Download", "add", "get" a movie = request in Jellyseerr
 
-REGLAS CRÍTICAS:
-- NUNCA uses docker_compose_down, docker_compose_up, docker_restart sin orden EXPLÍCITA
-- Palabras que autorizan: "reinicia", "apaga", "levanta", "detén", "sube", "baja"
-- Si preguntan "hay algún error?" → solo informás, no actuás
-- Si encontrás un problema → preguntá "¿Querés que lo reinicie?" antes de actuar
-- Alertas críticas → enviar_dm (privado), no enviar_discord
-- Respondé en español, de forma concisa
-- No menciones que sos un LLM ni que usás OpenRouter"""
+CRITICAL RULES:
+- NEVER use docker_compose_down, docker_compose_up, docker_restart without EXPLICIT order
+- Words that authorize: "restart", "shut down", "bring up", "stop", "up", "down"
+- If they ask "any errors?" → only report, do not act
+- If you find a problem → ask "Do you want me to restart it?" before acting
+- Critical alerts → send_dm (private), not send_discord
+- Respond in Spanish, concisely
+- Do not mention you are an LLM or that you use OpenRouter"""
 
 
-def procesar(mensaje_usuario: str, historial: list, origen: str = "web") -> tuple[str, list, int]:
-    from core.historial import agregar, reciente
+def process(user_message: str, history: list, origin: str = "web") -> tuple[str, list, int]:
+    from core.historial import add as add_history, recent
 
-    historial = agregar(historial, "user", mensaje_usuario, origen)
-    log_actividad("tool", f"Consulta [{origen}]: {mensaje_usuario[:80]}", "Chat")
+    history = add_history(history, "user", user_message, origin)
+    log_activity("tool", f"Query [{origin}]: {user_message[:80]}", "Chat")
 
-    mensajes    = [{"role": "system", "content": build_system_prompt()}] + reciente(historial)
-    pasos       = 0
+    messages    = [{"role": "system", "content": build_system_prompt()}] + recent(history)
+    steps       = 0
     token_total = 0
-    modelo_usado = None
+    model_used  = None
 
-    while pasos < MAX_PASOS:
-        mensaje, modelo_usado, tokens = chat_con_fallback(
-            messages=mensajes,
+    while steps < MAX_STEPS:
+        message, model_used, tokens = chat_with_fallback(
+            messages=messages,
             tools=TOOLS,
             max_tokens=1500
         )
         token_total += tokens
 
-        if not mensaje.tool_calls:
-            texto     = mensaje.content
-            historial = agregar(historial, "assistant", texto, origen)
-            if origen == "web":
-                tokens_db.agregar(token_total, origen="web", modelo=modelo_usado)
-            log_actividad("ok", f"Respuesta OK — {modelo_usado.split('/')[-1]} — {token_total} tokens", "Jarvis")
-            return texto, historial, token_total
+        if not message.tool_calls:
+            text     = message.content
+            history  = add_history(history, "assistant", text, origin)
+            if origin == "web":
+                tokens_db.add(token_total, origin="web", model=model_used)
+            log_activity("ok", f"Response OK — {model_used.split('/')[-1]} — {token_total} tokens", "Jarvis")
+            return text, history, token_total
 
-        mensajes.append(mensaje)
+        messages.append(message)
 
-        for tool_call in mensaje.tool_calls:
-            nombre    = tool_call.function.name
-            args      = json.loads(tool_call.function.arguments)
-            print(f"[Jarvis] → {nombre}({args})")
-            resultado = ejecutar_herramienta(nombre, args)
-            mensajes.append({
+        for tool_call in message.tool_calls:
+            name     = tool_call.function.name
+            args     = json.loads(tool_call.function.arguments)
+            print(f"[Jarvis] → {name}({args})")
+            result   = execute_tool(name, args)
+            messages.append({
                 "role":         "tool",
                 "tool_call_id": tool_call.id,
-                "content":      str(resultado)
+                "content":      str(result)
             })
 
-        pasos += 1
+        steps += 1
 
-    mensaje, modelo_usado, tokens = chat_con_fallback(messages=mensajes, max_tokens=1000)
-    texto        = mensaje.content
+    message, model_used, tokens = chat_with_fallback(messages=messages, max_tokens=1000)
+    text         = message.content
     token_total += tokens
-    historial    = agregar(historial, "assistant", texto, origen)
-    if origen == "web":
-        tokens_db.agregar(token_total, origen="web", modelo=modelo_usado)
-    return texto, historial, token_total
+    history      = add_history(history, "assistant", text, origin)
+    if origin == "web":
+        tokens_db.add(token_total, origin="web", model=model_used)
+    return text, history, token_total

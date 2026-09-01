@@ -1,7 +1,7 @@
 """
-Vigilante — monitoreo proactivo con control dinámico.
-FIX: resumen diario con ventana de 5 min para no perderse si el loop
-     no corre exactamente en el minuto 0 de la hora configurada.
+Watchdog — proactive monitoring with dynamic control.
+Daily summary with a 5-minute window so it doesn't get missed
+if the loop doesn't run exactly at minute 0 of the configured hour.
 """
 import time
 import threading
@@ -11,34 +11,34 @@ import json
 import os
 from datetime import datetime, date
 from core.sistema import get_containers, get_temp
-from core.actividad import registrar as log_actividad
-from core.config import VIGILANTE_FILE
+from core.actividad import log as log_activity
+from core.config import WATCHDOG_CONFIG_FILE
 
 CONFIG_DEFAULT = {
-    "activo":        True,
-    "intervalo":     300,
-    "cpu_umbral":    90,
-    "ram_umbral":    85,
-    "disco_umbral":  85,
-    "temp_umbral":   80,
-    "resumen_hora":  8,
-    "ultimo_resumen_fecha": None,
+    "active":           True,
+    "interval":         300,
+    "cpu_threshold":    90,
+    "ram_threshold":    85,
+    "disk_threshold":   85,
+    "temp_threshold":   80,
+    "summary_hour":     8,
+    "last_summary_date": None,
 }
 
-_alertas_enviadas    = set()
-_historial_reinicios = {}
-_ultimo_resumen      = None
-_dm_fn               = None
-_canal_fn            = None
-_memoria_dia         = {}
+_alerts_sent        = set()
+_restart_history     = {}
+_last_summary       = None
+_dm_fn              = None
+_channel_fn         = None
+_day_memory         = {}
 
-MAX_INTENTOS_CONTENEDOR = 2
-COOLDOWN_REINICIO       = 600
+MAX_CONTAINER_ATTEMPTS = 2
+RESTART_COOLDOWN       = 600
 
 
-def cargar_config() -> dict:
-    if os.path.exists(VIGILANTE_FILE):
-        with open(VIGILANTE_FILE) as f:
+def load_config() -> dict:
+    if os.path.exists(WATCHDOG_CONFIG_FILE):
+        with open(WATCHDOG_CONFIG_FILE) as f:
             try:
                 data = json.load(f)
                 return {**CONFIG_DEFAULT, **data}
@@ -47,37 +47,37 @@ def cargar_config() -> dict:
     return CONFIG_DEFAULT.copy()
 
 
-def guardar_config(config: dict):
-    with open(VIGILANTE_FILE, "w") as f:
+def save_config(config: dict):
+    with open(WATCHDOG_CONFIG_FILE, "w") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
 
 
-def actualizar_config(cambios: dict) -> dict:
-    config = cargar_config()
-    config.update(cambios)
-    guardar_config(config)
-    log_actividad("auto", f"Config vigilante actualizada: {cambios}", "Vigilante")
+def update_config(changes: dict) -> dict:
+    config = load_config()
+    config.update(changes)
+    save_config(config)
+    log_activity("auto", f"Watchdog config updated: {changes}", "Watchdog")
     return config
 
 
-def get_estado() -> dict:
-    config = cargar_config()
+def get_status() -> dict:
+    config = load_config()
     return {
         **config,
-        "alertas_activas":      list(_alertas_enviadas),
-        "reinicios_pendientes": len([k for k in _historial_reinicios if _historial_reinicios[k].get("intentos", 0) > 0]),
+        "active_alerts":     list(_alerts_sent),
+        "pending_restarts":  len([k for k in _restart_history if _restart_history[k].get("attempts", 0) > 0]),
     }
 
 
-def iniciar(dm_fn, canal_fn=None, background=False):
-    global _dm_fn, _canal_fn
-    _dm_fn    = dm_fn
-    _canal_fn = canal_fn
-    if not os.path.exists(VIGILANTE_FILE):
-        guardar_config(CONFIG_DEFAULT)
-    print("[Vigilante] Iniciado.")
+def start(dm_fn, channel_fn=None, background=False):
+    global _dm_fn, _channel_fn
+    _dm_fn     = dm_fn
+    _channel_fn = channel_fn
+    if not os.path.exists(WATCHDOG_CONFIG_FILE):
+        save_config(CONFIG_DEFAULT)
+    print("[Watchdog] Started.")
     if background:
-        t = threading.Thread(target=_loop, name="vigilante-loop", daemon=True)
+        t = threading.Thread(target=_loop, name="watchdog-loop", daemon=True)
         t.start()
         return t
     _loop()
@@ -86,210 +86,210 @@ def iniciar(dm_fn, canal_fn=None, background=False):
 def _dm(msg):
     if _dm_fn:
         _dm_fn(msg)
-    log_actividad("auto", msg[:100], "Vigilante")
+    log_activity("auto", msg[:100], "Watchdog")
 
 
 def _loop():
-    global _ultimo_resumen
+    global _last_summary
     while True:
-        config = cargar_config()
-        if config.get("activo", True):
+        config = load_config()
+        if config.get("active", True):
             try:
-                _resetear_memoria_si_nuevo_dia(config)
-                _chequear_sistema(config)
-                _chequear_contenedores(config)
-                _resumen_diario(config)
+                _reset_memory_if_new_day(config)
+                _check_system(config)
+                _check_containers(config)
+                _daily_summary(config)
             except Exception as e:
-                print(f"[Vigilante] Error: {e}")
-        time.sleep(config.get("intervalo", 300))
+                print(f"[Watchdog] Error: {e}")
+        time.sleep(config.get("interval", 300))
 
 
-def _resetear_memoria_si_nuevo_dia(config):
-    global _memoria_dia, _ultimo_resumen
-    hoy = date.today()
-    if _memoria_dia.get("fecha") != hoy:
-        _memoria_dia = {
-            "fecha":           hoy,
-            "disco_inicio":    psutil.disk_usage('/').percent,
-            "errores":         [],
-            "reparados":       [],
-            "no_reparados":    [],
-            "alertas_sistema": [],
-            "picos_cpu":       [],
-            "picos_ram":       [],
+def _reset_memory_if_new_day(config):
+    global _day_memory, _last_summary
+    today = date.today()
+    if _day_memory.get("date") != today:
+        _day_memory = {
+            "date":            today,
+            "disk_at_start":   psutil.disk_usage('/').percent,
+            "errors":          [],
+            "repaired":        [],
+            "unrepaired":      [],
+            "system_alerts":   [],
+            "cpu_peaks":       [],
+            "ram_peaks":       [],
         }
-        _ultimo_resumen = None
+        _last_summary = None
 
 
-def _chequear_sistema(config):
+def _check_system(config):
     cpu   = psutil.cpu_percent(interval=1)
     ram   = psutil.virtual_memory().percent
-    disco = psutil.disk_usage('/').percent
+    disk  = psutil.disk_usage('/').percent
     temp  = get_temp()
 
-    if cpu > 80: _memoria_dia["picos_cpu"].append(cpu)
-    if ram > 80: _memoria_dia["picos_ram"].append(ram)
+    if cpu > 80: _day_memory["cpu_peaks"].append(cpu)
+    if ram > 80: _day_memory["ram_peaks"].append(ram)
 
-    cpu_u   = config.get("cpu_umbral",   90)
-    ram_u   = config.get("ram_umbral",   85)
-    disco_u = config.get("disco_umbral", 85)
-    temp_u  = config.get("temp_umbral",  80)
+    cpu_t   = config.get("cpu_threshold",   90)
+    ram_t   = config.get("ram_threshold",   85)
+    disk_t  = config.get("disk_threshold",  85)
+    temp_t  = config.get("temp_threshold",  80)
 
-    if cpu >= cpu_u and "cpu" not in _alertas_enviadas:
-        _dm(f"🔴 **Jarvis** — CPU al {cpu}%")
-        _alertas_enviadas.add("cpu")
-        _memoria_dia["alertas_sistema"].append({"hora": datetime.now().strftime("%H:%M"), "tipo": "CPU", "valor": f"{cpu}%"})
-    elif cpu < cpu_u - 10:
-        _alertas_enviadas.discard("cpu")
+    if cpu >= cpu_t and "cpu" not in _alerts_sent:
+        _dm(f"🔴 **Jarvis** — CPU at {cpu}%")
+        _alerts_sent.add("cpu")
+        _day_memory["system_alerts"].append({"time": datetime.now().strftime("%H:%M"), "type": "CPU", "value": f"{cpu}%"})
+    elif cpu < cpu_t - 10:
+        _alerts_sent.discard("cpu")
 
-    if ram >= ram_u and "ram" not in _alertas_enviadas:
-        _dm(f"🔴 **Jarvis** — RAM al {ram}%")
-        _alertas_enviadas.add("ram")
-        _memoria_dia["alertas_sistema"].append({"hora": datetime.now().strftime("%H:%M"), "tipo": "RAM", "valor": f"{ram}%"})
-    elif ram < ram_u - 10:
-        _alertas_enviadas.discard("ram")
+    if ram >= ram_t and "ram" not in _alerts_sent:
+        _dm(f"🔴 **Jarvis** — RAM at {ram}%")
+        _alerts_sent.add("ram")
+        _day_memory["system_alerts"].append({"time": datetime.now().strftime("%H:%M"), "type": "RAM", "value": f"{ram}%"})
+    elif ram < ram_t - 10:
+        _alerts_sent.discard("ram")
 
-    if disco >= disco_u and "disco" not in _alertas_enviadas:
-        libre = round(psutil.disk_usage('/').free / 1024**3, 1)
-        _dm(f"🔴 **Jarvis** — Disco al {disco}% ({libre}GB libres)")
-        _alertas_enviadas.add("disco")
-        _memoria_dia["alertas_sistema"].append({"hora": datetime.now().strftime("%H:%M"), "tipo": "Disco", "valor": f"{disco}%"})
-    elif disco < disco_u - 10:
-        _alertas_enviadas.discard("disco")
+    if disk >= disk_t and "disk" not in _alerts_sent:
+        free = round(psutil.disk_usage('/').free / 1024**3, 1)
+        _dm(f"🔴 **Jarvis** — Disk at {disk}% ({free}GB free)")
+        _alerts_sent.add("disk")
+        _day_memory["system_alerts"].append({"time": datetime.now().strftime("%H:%M"), "type": "Disk", "value": f"{disk}%"})
+    elif disk < disk_t - 10:
+        _alerts_sent.discard("disk")
 
     if temp:
-        if temp >= temp_u and "temp" not in _alertas_enviadas:
-            _dm(f"🌡️ **Jarvis** — Temperatura a {temp}°C")
-            _alertas_enviadas.add("temp")
-            _memoria_dia["alertas_sistema"].append({"hora": datetime.now().strftime("%H:%M"), "tipo": "Temp", "valor": f"{temp}°C"})
-        elif temp < temp_u - 10:
-            _alertas_enviadas.discard("temp")
+        if temp >= temp_t and "temp" not in _alerts_sent:
+            _dm(f"🌡️ **Jarvis** — Temperature at {temp}°C")
+            _alerts_sent.add("temp")
+            _day_memory["system_alerts"].append({"time": datetime.now().strftime("%H:%M"), "type": "Temp", "value": f"{temp}°C"})
+        elif temp < temp_t - 10:
+            _alerts_sent.discard("temp")
 
 
-def _chequear_contenedores(config):
-    contenedores = get_containers()
-    for c in contenedores:
-        nombre = c["nombre"]
-        if c["estado"] == "running":
-            if nombre in _historial_reinicios:
-                if time.time() - _historial_reinicios[nombre].get("ultimo_intento", 0) > 3600:
-                    del _historial_reinicios[nombre]
-            _alertas_enviadas.discard(f"container_{nombre}")
+def _check_containers(config):
+    containers = get_containers()
+    for c in containers:
+        name = c["name"]
+        if c["status"] == "running":
+            if name in _restart_history:
+                if time.time() - _restart_history[name].get("last_attempt", 0) > 3600:
+                    del _restart_history[name]
+            _alerts_sent.discard(f"container_{name}")
             continue
 
-        info           = _historial_reinicios.get(nombre, {"intentos": 0, "ultimo_intento": 0})
-        intentos       = info["intentos"]
-        ultimo_intento = info["ultimo_intento"]
-        ahora          = time.time()
+        info          = _restart_history.get(name, {"attempts": 0, "last_attempt": 0})
+        attempts      = info["attempts"]
+        last_attempt  = info["last_attempt"]
+        now           = time.time()
 
-        if intentos >= MAX_INTENTOS_CONTENEDOR:
-            if f"container_fallido_{nombre}" not in _alertas_enviadas:
-                _dm(f"🔴 **Jarvis** — `{nombre}` sigue caído después de {intentos} intentos.\nIntervención manual necesaria.")
-                _alertas_enviadas.add(f"container_fallido_{nombre}")
+        if attempts >= MAX_CONTAINER_ATTEMPTS:
+            if f"container_failed_{name}" not in _alerts_sent:
+                _dm(f"🔴 **Jarvis** — `{name}` still down after {attempts} attempts.\nManual intervention required.")
+                _alerts_sent.add(f"container_failed_{name}")
             continue
 
-        if ahora - ultimo_intento < COOLDOWN_REINICIO:
+        if now - last_attempt < RESTART_COOLDOWN:
             continue
 
-        _intentar_reinicio(nombre, intentos)
+        _attempt_restart(name, attempts)
 
 
-def _intentar_reinicio(nombre: str, intentos_previos: int):
-    log_actividad("auto", f"Reiniciando {nombre} (intento {intentos_previos + 1})", "Vigilante")
-    _historial_reinicios[nombre] = {"intentos": intentos_previos + 1, "ultimo_intento": time.time()}
+def _attempt_restart(name: str, prev_attempts: int):
+    log_activity("auto", f"Restarting {name} (attempt {prev_attempts + 1})", "Watchdog")
+    _restart_history[name] = {"attempts": prev_attempts + 1, "last_attempt": time.time()}
     try:
-        subprocess.run(f"docker restart {nombre}", shell=True, capture_output=True, text=True, timeout=30)
+        subprocess.run(f"docker restart {name}", shell=True, capture_output=True, text=True, timeout=30)
         time.sleep(8)
-        check = subprocess.run(f"docker inspect -f '{{{{.State.Running}}}}' {nombre}", shell=True, capture_output=True, text=True, timeout=10)
+        check = subprocess.run(f"docker inspect -f '{{{{.State.Running}}}}' {name}", shell=True, capture_output=True, text=True, timeout=10)
         if "true" in check.stdout.lower():
-            _dm(f"🔧 **Jarvis Auto-repair** — `{nombre}` estaba caído, lo reinicié ✅")
-            log_actividad("ok", f"Auto-restart exitoso: {nombre}", "Vigilante")
-            _historial_reinicios[nombre]["intentos"] = 0
+            _dm(f"🔧 **Jarvis Auto-repair** — `{name}` was down, restarted ✅")
+            log_activity("ok", f"Auto-restart successful: {name}", "Watchdog")
+            _restart_history[name]["attempts"] = 0
         else:
-            intentos_nuevos = _historial_reinicios[nombre]["intentos"]
-            if intentos_nuevos >= MAX_INTENTOS_CONTENEDOR:
-                _dm(f"🔴 **Jarvis** — `{nombre}` no responde tras {intentos_nuevos} intentos.\nRevisá: `docker logs {nombre}`")
-                log_actividad("alert", f"Reinicio fallido: {nombre}", "Vigilante")
+            new_attempts = _restart_history[name]["attempts"]
+            if new_attempts >= MAX_CONTAINER_ATTEMPTS:
+                _dm(f"🔴 **Jarvis** — `{name}` not responding after {new_attempts} attempts.\nCheck: `docker logs {name}`")
+                log_activity("alert", f"Restart failed: {name}", "Watchdog")
     except subprocess.TimeoutExpired:
-        _dm(f"⚠️ **Jarvis** — Timeout al reiniciar `{nombre}`.")
+        _dm(f"⚠️ **Jarvis** — Timeout restarting `{name}`.")
     except Exception as e:
-        log_actividad("alert", f"Error reiniciando {nombre}: {e}", "Vigilante")
+        log_activity("alert", f"Error restarting {name}: {e}", "Watchdog")
 
 
-def _resumen_diario(config):
-    global _ultimo_resumen
-    ahora        = datetime.now()
-    hoy          = ahora.date()
-    hora_resumen = config.get("resumen_hora", 8)
+def _daily_summary(config):
+    global _last_summary
+    now          = datetime.now()
+    today        = now.date()
+    summary_hour = config.get("summary_hour", 8)
 
-    minutos_desde_hora = ahora.hour * 60 + ahora.minute
-    minutos_objetivo   = hora_resumen * 60
-    hora_alcanzada     = minutos_desde_hora >= minutos_objetivo
-    resumen_ya_enviado = _ultimo_resumen == hoy or config.get("ultimo_resumen_fecha") == hoy.isoformat()
+    minutes_since_midnight = now.hour * 60 + now.minute
+    target_minutes         = summary_hour * 60
+    hour_reached           = minutes_since_midnight >= target_minutes
+    summary_already_sent   = _last_summary == today or config.get("last_summary_date") == today.isoformat()
 
-    if not hora_alcanzada or resumen_ya_enviado:
+    if not hour_reached or summary_already_sent:
         return
 
     cpu     = psutil.cpu_percent(interval=1)
     ram     = psutil.virtual_memory()
-    disco   = psutil.disk_usage('/')
+    disk    = psutil.disk_usage('/')
     temp    = get_temp()
     cs      = get_containers()
-    running = sum(1 for c in cs if c["estado"] == "running")
-    stopped = sum(1 for c in cs if c["estado"] == "stopped")
-    todo_ok = stopped == 0 and cpu < 80 and ram.percent < 80
+    running = sum(1 for c in cs if c["status"] == "running")
+    stopped = sum(1 for c in cs if c["status"] == "stopped")
+    all_ok  = stopped == 0 and cpu < 80 and ram.percent < 80
 
-    disco_inicio = _memoria_dia.get("disco_inicio")
-    disco_delta  = ""
-    if disco_inicio is not None:
-        diff = round(disco.percent - disco_inicio, 1)
-        if diff > 0:   disco_delta = f" (+{diff}% vs inicio ⚠️)" if diff >= 3 else f" (+{diff}%)"
-        elif diff < 0: disco_delta = f" ({diff}%)"
+    disk_start = _day_memory.get("disk_at_start")
+    disk_delta  = ""
+    if disk_start is not None:
+        diff = round(disk.percent - disk_start, 1)
+        if diff > 0:   disk_delta = f" (+{diff}% vs start ⚠️)" if diff >= 3 else f" (+{diff}%)"
+        elif diff < 0: disk_delta = f" ({diff}%)"
 
-    pico_cpu = max(_memoria_dia.get("picos_cpu") or [0])
-    pico_ram = max(_memoria_dia.get("picos_ram") or [0])
+    cpu_peak = max(_day_memory.get("cpu_peaks") or [0])
+    ram_peak = max(_day_memory.get("ram_peaks") or [0])
 
-    lineas = [
-        f"📊 **Jarvis — Resumen del día** ({ahora.strftime('%d/%m/%Y')})",
+    lines = [
+        f"📊 **Jarvis — Daily summary** ({now.strftime('%d/%m/%Y')})",
         "━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
-        "**📈 Estado actual:**",
-        f"  🖥️ CPU: {cpu}%{f'  (pico: {pico_cpu}%)' if pico_cpu else ''}",
-        f"  🧠 RAM: {ram.percent}% — {round(ram.used/1024**3,1)}GB/{round(ram.total/1024**3,1)}GB{f'  (pico: {pico_ram}%)' if pico_ram else ''}",
-        f"  💾 Disco: {disco.percent}%{disco_delta} — {round(disco.free/1024**3,1)}GB libres",
+        "**📈 Current status:**",
+        f"  🖥️ CPU: {cpu}%{f'  (peak: {cpu_peak}%)' if cpu_peak else ''}",
+        f"  🧠 RAM: {ram.percent}% — {round(ram.used/1024**3,1)}GB/{round(ram.total/1024**3,1)}GB{f'  (peak: {ram_peak}%)' if ram_peak else ''}",
+        f"  💾 Disk: {disk.percent}%{disk_delta} — {round(disk.free/1024**3,1)}GB free",
     ]
-    if temp: lineas.append(f"  🌡️ Temp: {temp}°C")
-    lineas.append(f"  🐳 Contenedores: {running} ✅  {stopped} ❌")
+    if temp: lines.append(f"  🌡️ Temp: {temp}°C")
+    lines.append(f"  🐳 Containers: {running} ✅  {stopped} ❌")
 
-    alertas_hoy = _memoria_dia.get("alertas_sistema", [])
-    if alertas_hoy:
-        lineas += ["", "**⚠️ Alertas del día:**"]
-        for a in alertas_hoy[-5:]:
-            lineas.append(f"  `{a['hora']}` — {a['tipo']} llegó a {a['valor']}")
+    today_alerts = _day_memory.get("system_alerts", [])
+    if today_alerts:
+        lines += ["", "**⚠️ Today's alerts:**"]
+        for a in today_alerts[-5:]:
+            lines.append(f"  `{a['time']}` — {a['type']} reached {a['value']}")
 
-    reparados    = _memoria_dia.get("reparados",    [])
-    no_reparados = _memoria_dia.get("no_reparados", [])
-    if reparados:
-        lineas += ["", "**✅ Reparados hoy:**"]
-        for r in reparados:
-            lineas.append(f"  `{r['hora']}` — `{r['contenedor']}` — {r['detalle']}")
-    if no_reparados:
-        lineas += ["", "**❌ Sin resolver:**"]
-        for n in no_reparados:
-            lineas.append(f"  `{n['hora']}` — `{n['contenedor']}` — {n['detalle']}")
-            lineas.append(f"  → `docker logs {n['contenedor']}`")
+    repaired_list   = _day_memory.get("repaired",   [])
+    unrepaired_list = _day_memory.get("unrepaired", [])
+    if repaired_list:
+        lines += ["", "**✅ Repaired today:**"]
+        for r in repaired_list:
+            lines.append(f"  `{r['time']}` — `{r['container']}` — {r['detail']}")
+    if unrepaired_list:
+        lines += ["", "**❌ Unresolved:**"]
+        for n in unrepaired_list:
+            lines.append(f"  `{n['time']}` — `{n['container']}` — {n['detail']}")
+            lines.append(f"  → `docker logs {n['container']}`")
 
-    caidos = [c["nombre"] for c in cs if c["estado"] == "stopped"]
-    if caidos:
-        lineas += ["", f"**🔴 Caídos ahora:** {', '.join(f'`{c}`' for c in caidos)}"]
+    down = [c["name"] for c in cs if c["status"] == "stopped"]
+    if down:
+        lines += ["", f"**🔴 Down now:** {', '.join(f'`{c}`' for c in down)}"]
 
-    lineas += [
+    lines += [
         "", "━━━━━━━━━━━━━━━━━━━━━━━━",
-        "✅ Todo en orden" if todo_ok and not no_reparados else "⚠️ Hay cosas para revisar"
+        "✅ All good" if all_ok and not unrepaired_list else "⚠️ Things to check"
     ]
 
-    _dm("\n".join(lineas))
-    log_actividad("auto", "Resumen diario enviado", "Vigilante")
-    _ultimo_resumen = hoy
-    config["ultimo_resumen_fecha"] = hoy.isoformat()
-    guardar_config(config)
+    _dm("\n".join(lines))
+    log_activity("auto", "Daily summary sent", "Watchdog")
+    _last_summary = today
+    config["last_summary_date"] = today.isoformat()
+    save_config(config)

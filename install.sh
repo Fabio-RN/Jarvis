@@ -5,7 +5,6 @@ INSTALL_DIR="/srv/nas/assistant"
 SERVICE_NAME="jarvis"
 REPO_URL=""
 
-# ── Colors ──────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -17,12 +16,10 @@ ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
-# ── Root check ──────────────────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then
     error "Run this script as root: sudo bash install.sh"
 fi
 
-# ── Arguments ───────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case $1 in
         --dir)
@@ -39,7 +36,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── 1. Clone or update ──────────────────────────────────────────────
 if [[ -d "$INSTALL_DIR/.git" ]]; then
     info "Updating existing repo at $INSTALL_DIR..."
     cd "$INSTALL_DIR"
@@ -58,12 +54,10 @@ fi
 
 cd "$INSTALL_DIR"
 
-# ── 2. System dependencies ─────────────────────────────────────────
 info "Installing system dependencies..."
 apt-get update -qq
 apt-get install -y -qq python3 python3-pip python3-venv > /dev/null
 
-# ── 3. Python virtualenv ────────────────────────────────────────────
 VENV_DIR="$INSTALL_DIR/venv"
 
 if [[ ! -d "$VENV_DIR" ]]; then
@@ -74,11 +68,9 @@ fi
 info "Installing Python dependencies..."
 "$VENV_DIR/bin/pip" install -r requirements.txt --quiet
 
-# ── 4. Data directory ───────────────────────────────────────────────
 mkdir -p "$INSTALL_DIR/data"
 ok "Data directory ready"
 
-# ── 5. .env check ──────────────────────────────────────────────────
 if [[ ! -f "$INSTALL_DIR/.env" ]]; then
     if [[ -f "$INSTALL_DIR/.env.example" ]]; then
         cp "$INSTALL_DIR/.env.example" "$INSTALL_DIR/.env"
@@ -94,7 +86,6 @@ else
     ENV_NEEDS_EDIT=0
 fi
 
-# ── 6. Systemd service ─────────────────────────────────────────────
 info "Installing systemd service..."
 cat > /etc/systemd/system/jarvis.service << EOF
 [Unit]
@@ -113,7 +104,6 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=jarvis
 
-# Security hardening
 NoNewPrivileges=false
 ProtectSystem=false
 
@@ -125,7 +115,85 @@ systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 ok "Systemd service installed and enabled"
 
-# ── 7. Done ────────────────────────────────────────────────────────
+info "Installing 'jarvis' console command..."
+cat > /usr/local/bin/jarvis << 'CMDEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+SERVICE="jarvis"
+INSTALL_DIR="/srv/nas/assistant"
+
+show_help() {
+    echo -e "${BOLD}Usage:${NC} jarvis [command]"
+    echo ""
+    echo -e "${BOLD}Commands:${NC}"
+    echo "  ${CYAN}(none)${NC}      Start Jarvis in foreground with live logs"
+    echo "  ${CYAN}start${NC}       Start the Jarvis service (background)"
+    echo "  ${CYAN}stop${NC}        Stop the Jarvis service"
+    echo "  ${CYAN}restart${NC}     Restart the Jarvis service"
+    echo "  ${CYAN}status${NC}      Check service status"
+    echo "  ${CYAN}logs${NC}        Follow live logs"
+    echo "  ${CYAN}log${NC}         Show last 80 log lines"
+    echo "  ${CYAN}help${NC}        Show this help message"
+}
+
+case "${1:-}" in
+    start)
+        systemctl start "$SERVICE"
+        echo -e "${GREEN}[Jarvis]${NC} Service started."
+        ;;
+    stop)
+        systemctl stop "$SERVICE"
+        echo -e "${YELLOW}[Jarvis]${NC} Service stopped."
+        ;;
+    restart)
+        systemctl restart "$SERVICE"
+        echo -e "${CYAN}[Jarvis]${NC} Service restarted."
+        ;;
+    status)
+        systemctl status "$SERVICE" --no-pager
+        ;;
+    logs)
+        journalctl -u "$SERVICE" -f
+        ;;
+    log)
+        journalctl -u "$SERVICE" --no-pager -n 80
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    "")
+        if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
+            echo -e "${YELLOW}[Jarvis]${NC} Service is already running. Stopping first..."
+            systemctl stop "$SERVICE"
+            sleep 2
+        fi
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}  Jarvis — Foreground Mode${NC}"
+        echo -e "${GREEN}  Press Ctrl+C to stop${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        cd "$INSTALL_DIR"
+        "$INSTALL_DIR/venv/bin/python" main.py
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        show_help
+        exit 1
+        ;;
+esac
+CMDEOF
+
+chmod +x /usr/local/bin/jarvis
+ok "'jarvis' command installed at /usr/local/bin/jarvis"
+
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  Jarvis installed successfully!${NC}"
@@ -138,14 +206,15 @@ if [[ "$ENV_NEEDS_EDIT" == "1" ]]; then
     echo ""
 fi
 
-echo "  Start Jarvis:"
-echo "      systemctl start jarvis"
+echo "  Quick start — just type:"
+echo -e "      ${BOLD}jarvis${NC}              # Run in foreground (like a console app)"
 echo ""
-echo "  Useful commands:"
-echo "      systemctl status jarvis             # Check status"
-echo "      systemctl restart jarvis            # Restart"
-echo "      journalctl -u jarvis -f            # Live logs"
-echo "      journalctl -u jarvis --no-pager -n 100  # Last 100 lines"
-echo "      sudo systemctl restart jarvis && clear && sudo journalctf -u jarvis -f # Restart jarvis and see the status / logs"
+echo "  Other commands:"
+echo "      jarvis start         # Start as background service"
+echo "      jarvis stop          # Stop background service"
+echo "      jarvis restart       # Restart"
+echo "      jarvis status        # Check status"
+echo "      jarvis logs          # Live log stream"
+echo "      jarvis log           # Last 80 log lines"
 echo ""
 echo "  Web dashboard: http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<YOUR_IP>'):8888"

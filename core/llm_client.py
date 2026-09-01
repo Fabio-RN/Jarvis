@@ -1,24 +1,21 @@
 """
-LLM Client con fallback automático.
-Intenta modelos en orden hasta que uno responda sin rate limit.
-Compatible con OpenRouter (mismo protocolo que OpenAI/Groq).
+LLM Client with automatic fallback.
+Tries models in order until one responds without rate limit.
+Compatible with OpenRouter (same protocol as OpenAI/Groq).
 """
 import time
 import os
 from openai import OpenAI
 from core.config import OPENROUTER_API_KEY
 
-# openrouter/free elige automáticamente un modelo gratuito que soporte
-# la funcionalidad que necesitás (incluyendo tool use) — es el fallback perfecto.
-# Los demás son modelos específicos verificados con tool use en 2026.
-MODELOS_FALLBACK = [
-    "meta-llama/llama-3.3-70b-instruct:free",  # el mejor, mismo que tenías en Groq
-    "mistralai/devstral-small:free",  
-    "nvidia/llama-3.1-nemotron-nano-8b-v1:free",# NVIDIA, rápido, soporta tools ✅
-    "openrouter/free",                          # comodín — elige el mejor disponible ✅
+FALLBACK_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "mistralai/devstral-small:free",
+    "nvidia/llama-3.1-nemotron-nano-8b-v1:free",
+    "openrouter/free",
 ]
 
-MODELO_VIGILANTE = "nvidia/llama-3.1-nemotron-nano-8b-v1:free"  # ligero para el vigilante
+WATCHDOG_MODEL = "nvidia/llama-3.1-nemotron-nano-8b-v1:free"
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -30,18 +27,18 @@ client = OpenAI(
 )
 
 
-def chat_con_fallback(messages: list, tools: list = None, max_tokens: int = 1500, modelo_override: str = None) -> tuple:
+def chat_with_fallback(messages: list, tools: list = None, max_tokens: int = 1500, model_override: str = None) -> tuple:
     """
-    Intenta cada modelo en orden hasta que uno funcione.
-    Devuelve (mensaje_response, modelo_usado, tokens_usados)
+    Tries each model in order until one works.
+    Returns (message_response, model_used, tokens_used)
     """
-    modelos = [modelo_override] if modelo_override else MODELOS_FALLBACK
+    models = [model_override] if model_override else FALLBACK_MODELS
 
-    ultimo_error = None
-    for modelo in modelos:
+    last_error = None
+    for model in models:
         try:
             kwargs = {
-                "model":      modelo,
+                "model":      model,
                 "messages":   messages,
                 "max_tokens": max_tokens,
             }
@@ -49,21 +46,19 @@ def chat_con_fallback(messages: list, tools: list = None, max_tokens: int = 1500
                 kwargs["tools"]       = tools
                 kwargs["tool_choice"] = "auto"
 
-            respuesta = client.chat.completions.create(**kwargs)
-            tokens    = respuesta.usage.total_tokens if respuesta.usage else 0
-            return respuesta.choices[0].message, modelo, tokens
+            response = client.chat.completions.create(**kwargs)
+            tokens   = response.usage.total_tokens if response.usage else 0
+            return response.choices[0].message, model, tokens
 
         except Exception as e:
             err = str(e).lower()
             if any(x in err for x in ["rate limit", "429", "quota", "too many", "404", "no endpoints"]):
-                print(f"[LLM] {modelo} no disponible ({e}), probando siguiente...")
-                ultimo_error = e
+                print(f"[LLM] {model} unavailable ({e}), trying next...")
+                last_error = e
                 time.sleep(1)
                 continue
             else:
-                # Error distinto a rate limit — no intentar más modelos
-                print(f"[LLM] Error en {modelo}: {e}")
+                print(f"[LLM] Error in {model}: {e}")
                 raise
 
-    # Todos fallaron por rate limit
-    raise Exception(f"Todos los modelos están en rate limit. Último error: {ultimo_error}")
+    raise Exception(f"All models are rate limited. Last error: {last_error}")

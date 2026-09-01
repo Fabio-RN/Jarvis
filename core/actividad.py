@@ -1,29 +1,29 @@
 import json
 import os
 from datetime import datetime
-from core.config import ACTIVIDAD_LOG
+from core.config import ACTIVITY_LOG
 
 
-def registrar(tipo: str, texto: str, badge: str = ""):
+def log(entry_type: str, text: str, badge: str = ""):
     """
-    tipo: 'tool' | 'alert' | 'ok' | 'warn' | 'cmd' | 'auto'
+    entry_type: 'tool' | 'alert' | 'ok' | 'warn' | 'cmd' | 'auto'
     """
-    entrada = {
-        "tipo": tipo,
-        "texto": texto,
+    entry = {
+        "type": entry_type,
+        "text": text,
         "badge": badge,
-        "hora": datetime.now().strftime("%H:%M:%S"),
-        "fecha": datetime.now().strftime("%d/%m/%Y")
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "date": datetime.now().strftime("%d/%m/%Y")
     }
-    logs = cargar()
-    logs.insert(0, entrada)
-    with open(ACTIVIDAD_LOG, "w") as f:
-        json.dump(logs[:200], f, ensure_ascii=False)
+    entries = load()
+    entries.insert(0, entry)
+    with open(ACTIVITY_LOG, "w") as f:
+        json.dump(entries[:200], f, ensure_ascii=False)
 
 
-def cargar():
-    if os.path.exists(ACTIVIDAD_LOG):
-        with open(ACTIVIDAD_LOG) as f:
+def load():
+    if os.path.exists(ACTIVITY_LOG):
+        with open(ACTIVITY_LOG) as f:
             try:
                 return json.load(f)
             except:

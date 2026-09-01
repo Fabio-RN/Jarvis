@@ -10,15 +10,15 @@ def _compose_dirs(base="/srv/nas/docker"):
     return dirs
 
 
-def docker_restart(nombre):
+def docker_restart(name):
     try:
         result = subprocess.run(
-            f"docker restart {nombre}",
+            f"docker restart {name}",
             shell=True, capture_output=True, text=True, timeout=30
         )
         if result.returncode == 0:
-            return f"✅ Contenedor '{nombre}' reiniciado correctamente."
-        return f"❌ Error reiniciando '{nombre}': {result.stderr.strip()}"
+            return f"✅ Container '{name}' restarted successfully."
+        return f"❌ Error restarting '{name}': {result.stderr.strip()}"
     except Exception as e:
         return f"Error: {e}"
 
@@ -27,16 +27,16 @@ def docker_compose_up():
     try:
         dirs = _compose_dirs()
         if not dirs:
-            return "No se encontraron directorios con docker-compose."
-        resultados = []
+            return "No docker-compose directories found."
+        results = []
         for d in dirs:
             r = subprocess.run(
                 ["docker", "compose", "up", "-d"],
                 cwd=d, capture_output=True, text=True, timeout=60
             )
-            nombre = os.path.basename(d)
-            resultados.append(f"{'✅' if r.returncode == 0 else '❌'} {nombre}")
-        return "docker compose up:\n" + "\n".join(resultados)
+            name = os.path.basename(d)
+            results.append(f"{'✅' if r.returncode == 0 else '❌'} {name}")
+        return "docker compose up:\n" + "\n".join(results)
     except Exception as e:
         return f"Error: {e}"
 
@@ -45,15 +45,15 @@ def docker_compose_down():
     try:
         dirs = _compose_dirs()
         if not dirs:
-            return "No se encontraron directorios con docker-compose."
-        resultados = []
+            return "No docker-compose directories found."
+        results = []
         for d in dirs:
             r = subprocess.run(
                 ["docker", "compose", "down"],
                 cwd=d, capture_output=True, text=True, timeout=60
             )
-            nombre = os.path.basename(d)
-            resultados.append(f"{'✅' if r.returncode == 0 else '❌'} {nombre}")
-        return "docker compose down:\n" + "\n".join(resultados)
+            name = os.path.basename(d)
+            results.append(f"{'✅' if r.returncode == 0 else '❌'} {name}")
+        return "docker compose down:\n" + "\n".join(results)
     except Exception as e:
         return f"Error: {e}"

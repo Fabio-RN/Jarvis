@@ -685,14 +685,14 @@
             try {
                 const res  = await fetch('/health');
                 const data = await res.json();
-                const nivel = data.nivel || 'ok';
+                const nivel = data.level || 'ok';
                 estadoActual = nivel;
 
                 // Construir snapshot de todos los items del health
                 const nuevoSnap = {};
                 const todos = [
-                    ...(data.problemas   || []).map(p => ({key:'p:'+p, tipo:'red',    texto:p})),
-                    ...(data.advertencias|| []).map(p => ({key:'a:'+p, tipo:'yellow', texto:p})),
+                    ...(data.problems   || []).map(p => ({key:'p:'+p, tipo:'red',    texto:p})),
+                    ...(data.warnings|| []).map(p => ({key:'a:'+p, tipo:'yellow', texto:p})),
                 ];
                 todos.forEach(i => { nuevoSnap[i.key] = i; });
 
@@ -705,9 +705,9 @@
                 _healthSnap = nuevoSnap;
 
                 // Renderizar tooltip
-                if (data.hilos && Object.keys(data.hilos).length) {
+                if (data.threads && Object.keys(data.threads).length) {
                     _hilosHtml = '<div class="tt-title" style="margin-top:10px;">Hilos</div>' +
-                        Object.entries(data.hilos).map(([k,v]) =>
+                        Object.entries(data.threads).map(([k,v]) =>
                             `<div class="tt-item"><div class="tt-dot ${v==='vivo'?'green':'red'}"></div><span>${k}: ${v}</span></div>`
                         ).join('');
                 } else {
@@ -771,11 +771,11 @@
         async function reiniciarContenedor(nombre) {
             const res  = await fetch(`/docker/restart/${nombre}`, {method:'POST'});
             const data = await res.json();
-            mostrarAlerta(data.mensaje, data.ok ? 'success' : 'danger');
+            mostrarAlerta(data.message, data.ok ? 'success' : 'danger');
         }
         async function dockerUp() {
             const data = (await(await fetch('/docker/up', {method:'POST'})).json());
-            mostrarAlerta(data.mensaje, data.ok ? 'success' : 'danger');
+            mostrarAlerta(data.message, data.ok ? 'success' : 'danger');
         }
         function mostrarAlerta(msg, tipo) {
             const d = document.createElement('div'); d.className = `alerta ${tipo}`; d.textContent = msg;
@@ -806,9 +806,9 @@
                 const res = await fetch('/stats'); const d = await res.json();
                 document.getElementById('cpu-stat').textContent   = d.cpu + '%';        colorStat(document.getElementById('cpu-stat'),   d.cpu,        70, 90);
                 document.getElementById('ram-stat').textContent   = d.ram_pct + '%';    colorStat(document.getElementById('ram-stat'),   d.ram_pct,    70, 90);
-                document.getElementById('disco-stat').textContent = d.disco_pct + '%';  colorStat(document.getElementById('disco-stat'), d.disco_pct,  70, 90);
+                document.getElementById('disco-stat').textContent = d.disk_pct + '%';  colorStat(document.getElementById('disco-stat'), d.disk_pct,  70, 90);
                 document.getElementById('ram-label').textContent   = `${d.ram_used}GB / ${d.ram_total}GB`;
-                document.getElementById('disco-label').textContent = `${d.disco_libre}GB libres`;
+                document.getElementById('disco-label').textContent = `${d.disk_free}GB libres`;
 
                 // Red — ahora son KB/s reales desde el servidor
                 document.getElementById('recv-stat').textContent = formatNet(d.recv_kbps);
@@ -819,13 +819,13 @@
 
                 if (d.cpu  >= 90 && !alertaCPU)   { mostrarAlerta('⚠️ CPU al '   +d.cpu+'%!',   'danger'); agregarAlertaPanel('critica', `🔴 CPU al ${d.cpu}%`,       'dash-cpu');       alertaCPU   = true; } else if (d.cpu   < 80) { alertaCPU   = false; alertasActivas = alertasActivas.filter(a => a.key !== 'dash-cpu'); renderAlertas(); }
                 if (d.ram_pct >= 85 && !alertaRAM) { mostrarAlerta('⚠️ RAM al '   +d.ram_pct+'%!','danger'); agregarAlertaPanel('critica', `🔴 RAM al ${d.ram_pct}%`,   'dash-ram');       alertaRAM   = true; } else if (d.ram_pct < 75) { alertaRAM   = false; alertasActivas = alertasActivas.filter(a => a.key !== 'dash-ram'); renderAlertas(); }
-                if (d.disco_pct >= 85 && !alertaDisco){ mostrarAlerta('⚠️ Disco al '+d.disco_pct+'%!','danger'); agregarAlertaPanel('critica', `🔴 Disco al ${d.disco_pct}%`,'dash-disco');   alertaDisco = true; } else if (d.disco_pct < 75) { alertaDisco = false; alertasActivas = alertasActivas.filter(a => a.key !== 'dash-disco'); renderAlertas(); }
+                if (d.disk_pct >= 85 && !alertaDisco){ mostrarAlerta('⚠️ Disco al '+d.disk_pct+'%!','danger'); agregarAlertaPanel('critica', `🔴 Disco al ${d.disk_pct}%`,'dash-disco');   alertaDisco = true; } else if (d.disk_pct < 75) { alertaDisco = false; alertasActivas = alertasActivas.filter(a => a.key !== 'dash-disco'); renderAlertas(); }
 
-                const nombresRunning = new Set((d.containers||[]).filter(c=>c.estado==='running').map(c=>c.nombre));
+                const nombresRunning = new Set((d.containers||[]).filter(c=>c.status==='running').map(c=>c.name));
                 // Añadir alerta si está caído y no existe ya
-                (d.containers||[]).filter(c=>c.estado!=='running').forEach(c=>{
-                    if (!alertasActivas.find(a=>a.key===`c-${c.nombre}`))
-                        agregarAlertaPanel('advertencia',`⚠️ Contenedor caído: ${c.nombre}`,`c-${c.nombre}`);
+                (d.containers||[]).filter(c=>c.status!=='running').forEach(c=>{
+                    if (!alertasActivas.find(a=>a.key===`c-${c.name}`))
+                        agregarAlertaPanel('advertencia',`⚠️ Contenedor caído: ${c.name}`,`c-${c.name}`);
                 });
                 // Limpiar alerta si el contenedor volvió a running
                 alertasActivas = alertasActivas.filter(a => {
@@ -842,7 +842,7 @@
                 const cs = d.containers || [];
                 document.getElementById('containers-list').innerHTML = cs.length === 0
                     ? '<div style="color:#8b949e;padding:10px;text-align:center;">⏹ Sin contenedores corriendo</div>'
-                    : cs.map(c => `<div class="container-item"><span>${c.nombre}</span><div style="display:flex;gap:6px;align-items:center;"><span class="badge ${c.estado}">${c.estado}</span><button class="btn-restart" onclick="reiniciarContenedor('${c.nombre}')">↺ Reiniciar</button></div></div>`).join('');
+                    : cs.map(c => `<div class="container-item"><span>${c.name}</span><div style="display:flex;gap:6px;align-items:center;"><span class="badge ${c.status}">${c.status}</span><button class="btn-restart" onclick="reiniciarContenedor('${c.name}')">↺ Reiniciar</button></div></div>`).join('');
             } catch(e) {}
         }
 
@@ -862,7 +862,7 @@
                 const pctWeb  = Math.min((web/total)*100, 100);
                 const pctDisc = Math.min((disc/total)*100, 100);
                 const restante = Math.max(total-usado, 0);
-                const modelo = d.modelo || 'openrouter/free';
+                const modelo = d.model || 'openrouter/free';
                 const nombreCorto = modelo.split('/').pop().replace(':free','').replace('-instruct','');
                 const colorTotal = pct>=90 ? '#ff0d00' : pct>=70 ? '#ffd000' : '#0066ff';
                 document.getElementById('ia-tokens-used').textContent   = usado.toLocaleString();
@@ -875,8 +875,8 @@
                 document.getElementById('ia-bar-discord').style.width = pctDisc+'%';
                 document.getElementById('ia-modelo-nombre').textContent = nombreCorto;
                 document.getElementById('ia-card-tokens').className = 'ia-stat-card'+(pct>=90?' red':pct>=70?' yellow':'');
-                if (d.fecha)       document.getElementById('ia-tokens-fecha').textContent = 'hoy ' + d.fecha;
-                if (d.ultima_sync) document.getElementById('ia-ultima-sync').textContent  = 'sync: ' + d.ultima_sync;
+                if (d.date)       document.getElementById('ia-tokens-fecha').textContent = 'hoy ' + d.date;
+                if (d.last_sync) document.getElementById('ia-ultima-sync').textContent  = 'sync: ' + d.last_sync;
                 document.getElementById('bar-modelo').textContent        = nombreCorto;
                 document.getElementById('bar-web-tokens').textContent    = web.toLocaleString();
                 document.getElementById('bar-discord-tokens').textContent= disc.toLocaleString();
@@ -897,19 +897,19 @@
         // ── Historial tokens ──────────────────────────────────────────
         async function cargarHistorialTokens() {
             try {
-                const res  = await fetch('/tokens/historial');
+                const res  = await fetch('/tokens/history');
                 const data = await res.json();
-                const hist = data.historial || [];
+                const hist = data.history || [];
                 const lista = document.getElementById('tokens-historial-lista');
                 if (!hist.length) { lista.innerHTML = '<div class="empty-state">Sin historial aún</div>'; return; }
                 const maxTotal = Math.max(...hist.map(h => h.total || 0), 1);
                 lista.innerHTML = hist.map(h => {
                     const pctWeb  = Math.round(((h.web||0) / maxTotal) * 100);
                     const pctDisc = Math.round(((h.discord||0) / maxTotal) * 100);
-                    const esHoy   = h.es_hoy ? `<span class="tokens-hist-hoy">hoy</span>` : '';
-                    const modelo  = h.modelo ? h.modelo.split('/').pop().replace(':free','') : '';
+                    const esHoy   = h.is_today ? `<span class="tokens-hist-hoy">hoy</span>` : '';
+                    const modelo  = h.model ? h.model.split('/').pop().replace(':free','') : '';
                     return `<div class="tokens-hist-item">
-                        <span class="tokens-hist-fecha">${h.fecha||''}${esHoy}</span>
+                        <span class="tokens-hist-fecha">${h.date||''}${esHoy}</span>
                         <div class="tokens-hist-bars">
                             <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctWeb}%;background:#0066ff;"></div><span style="font-size:10px;color:#0066ff;">${(h.web||0).toLocaleString()}</span></div>
                             <div class="tokens-hist-bar-wrap"><div class="tokens-hist-bar" style="width:${pctDisc}%;background:#915ddb;"></div><span style="font-size:10px;color:#915ddb;">${(h.discord||0).toLocaleString()}</span></div>
@@ -926,17 +926,17 @@
         // ── Vigilante ─────────────────────────────────────────────────
         async function cargarVigilante() {
             try {
-                const res = await fetch('/vigilante'); const d = await res.json();
-                document.getElementById('v-intervalo').value = d.intervalo||300;
-                document.getElementById('v-cpu').value       = d.cpu_umbral||90;
-                document.getElementById('v-ram').value       = d.ram_umbral||85;
-                document.getElementById('v-disco').value     = d.disco_umbral||85;
-                document.getElementById('v-temp').value      = d.temp_umbral||80;
-                document.getElementById('v-hora').value      = d.resumen_hora||8;
-                document.getElementById('v-intervalo-min').textContent = `= ${Math.round((d.intervalo||300)/60)} min`;
-                actualizarToggleBtn(d.activo);
+                const res = await fetch('/watchdog'); const d = await res.json();
+                document.getElementById('v-intervalo').value = d.interval||300;
+                document.getElementById('v-cpu').value       = d.cpu_threshold||90;
+                document.getElementById('v-ram').value       = d.ram_threshold||85;
+                document.getElementById('v-disco').value     = d.disk_threshold||85;
+                document.getElementById('v-temp').value      = d.temp_threshold||80;
+                document.getElementById('v-hora').value      = d.summary_hour||8;
+                document.getElementById('v-intervalo-min').textContent = `= ${Math.round((d.interval||300)/60)} min`;
+                actualizarToggleBtn(d.active);
                 const barVig = document.getElementById('bar-vigilante-status');
-                if (d.activo) { barVig.textContent = '🛡️ Vigilante activo'; barVig.style.color = '#0cd51e'; }
+                if (d.active) { barVig.textContent = '🛡️ Vigilante activo'; barVig.style.color = '#0cd51e'; }
                 else          { barVig.textContent = '⏸️ Vigilante pausado'; barVig.style.color = '#ffd000'; }
             } catch(e) {}
         }
@@ -947,21 +947,21 @@
             else        { btn.textContent = '○ Pausado'; btn.className = 'toggle-btn off'; txt.textContent = 'El vigilante no está corriendo'; }
         }
         async function toggleVigilante() {
-            const res  = await fetch('/vigilante/toggle', {method:'POST'});
+            const res  = await fetch('/watchdog/toggle', {method:'POST'});
             const data = await res.json();
-            actualizarToggleBtn(data.activo);
-            mostrarAlerta(data.mensaje, data.activo ? 'success' : 'warning');
+            actualizarToggleBtn(data.active);
+            mostrarAlerta(data.message, data.active ? 'success' : 'warning');
             cargarVigilante();
         }
         async function guardarVigilante() {
             const intervalo = parseInt(document.getElementById('v-intervalo').value);
-            const config = {intervalo, cpu_umbral:parseInt(document.getElementById('v-cpu').value), ram_umbral:parseInt(document.getElementById('v-ram').value), disco_umbral:parseInt(document.getElementById('v-disco').value), temp_umbral:parseInt(document.getElementById('v-temp').value), resumen_hora:parseInt(document.getElementById('v-hora').value)};
-            const res  = await fetch('/vigilante', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(config)});
+            const config = {intervalo, cpu_threshold:parseInt(document.getElementById('v-cpu').value), ram_threshold:parseInt(document.getElementById('v-ram').value), disk_threshold:parseInt(document.getElementById('v-disco').value), temp_threshold:parseInt(document.getElementById('v-temp').value), summary_hour:parseInt(document.getElementById('v-hora').value)};
+            const res  = await fetch('/watchdog', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(config)});
             const data = await res.json();
             if (data.ok) { mostrarAlerta('Config guardada ✓', 'success'); document.getElementById('v-intervalo-min').textContent = `= ${Math.round(intervalo/60)} min`; }
         }
         async function resetVigilante() {
-            await fetch('/vigilante', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({intervalo:300, cpu_umbral:90, ram_umbral:85, disco_umbral:85, temp_umbral:80, resumen_hora:8})});
+            await fetch('/watchdog', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({interval:300, cpu_threshold:90, ram_threshold:85, disk_threshold:85, temp_threshold:80, summary_hour:8})});
             cargarVigilante(); mostrarAlerta('Vigilante reseteado', 'success');
         }
         document.addEventListener('DOMContentLoaded', () => {
@@ -986,14 +986,14 @@
                 lista.innerHTML = '<div class="empty-state">Sin alertas ✓</div>';
                 count.className = 'value green'; sub.textContent = 'sistema estable'; card.className = 'ia-stat-card green';
             } else {
-                const c = alertasActivas.filter(a => a.tipo==='critica').length;
+                const c = alertasActivas.filter(a => a.type==='critica').length;
                 count.className = c>0 ? 'value red' : 'value yellow';
                 sub.textContent = c>0 ? `${c} crítica(s)` : 'advertencias';
                 card.className  = c>0 ? 'ia-stat-card red' : 'ia-stat-card yellow';
                 lista.innerHTML = alertasActivas.map(a =>
-                    `<div class="alerta-item ${a.tipo}" style="display:flex;justify-content:space-between;align-items:center;">
-                        <span style="flex:1;">${a.texto}</span>
-                        <span class="alerta-item-tiempo" style="margin:0 8px;">${a.hora}</span>
+                    `<div class="alerta-item ${a.type}" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="flex:1;">${a.text}</span>
+                        <span class="alerta-item-tiempo" style="margin:0 8px;">${a.time}</span>
                         <button onclick="descartarAlertaPanel('${a.key}')" style="background:none;border:none;color:#484f58;cursor:pointer;font-size:13px;padding:0 2px;" title="Descartar">✕</button>
                     </div>`
                 ).join('');
@@ -1017,7 +1017,7 @@
 
         async function actualizarPanelIA() {
             try {
-                const res  = await fetch('/actividad'); const data = await res.json(); const logs = data.actividad || [];
+                const res  = await fetch('/activity'); const data = await res.json(); const logs = data.activity || [];
                 const cats = {sistema:0, media:0, docker:0, cmd:0, ha:0};
                 logs.forEach(a => {
                     const b = (a.badge||'').toLowerCase();
@@ -1040,27 +1040,27 @@
 
         async function cargarActividad() {
             try {
-                const res  = await fetch('/actividad'); const data = await res.json(); const lista = document.getElementById('actividad-lista'); const logs = data.actividad || [];
+                const res  = await fetch('/activity'); const data = await res.json(); const lista = document.getElementById('actividad-lista'); const logs = data.activity || [];
                 if (!logs.length) { lista.innerHTML = '<div class="empty-state">Sin actividad aún</div>'; return; }
-                lista.innerHTML = logs.slice(0,25).map(a => `<div class="actividad-item ${a.tipo}"><span class="act-tiempo">${a.hora}</span><span class="act-texto">${a.texto}</span><span class="act-badge">${a.badge||''}</span></div>`).join('');
+                lista.innerHTML = logs.slice(0,25).map(a => `<div class="actividad-item ${a.type}"><span class="act-tiempo">${a.time}</span><span class="act-texto">${a.text}</span><span class="act-badge">${a.badge||''}</span></div>`).join('');
             } catch(e) {}
         }
 
         async function cargarTareas() {
             try {
                 const res  = await fetch('/tareas'); const data = await res.json();
-                document.getElementById('t-pendientes').textContent = data.pendientes||0;
-                document.getElementById('t-en-curso').textContent   = data.en_curso||0;
-                document.getElementById('t-reparados').textContent  = data.reparados||0;
-                document.getElementById('t-fallidos').textContent   = data.fallidos||0;
+                document.getElementById('t-pendientes').textContent = data.pending||0;
+                document.getElementById('t-en-curso').textContent   = data.in_progress||0;
+                document.getElementById('t-reparados').textContent  = data.repaired||0;
+                document.getElementById('t-fallidos').textContent   = data.failed||0;
                 const countEl = document.getElementById('ia-tareas-count'), subEl = document.getElementById('ia-tareas-sub'), card = document.getElementById('ia-card-tareas');
                 countEl.textContent = data.total||0;
-                if ((data.fallidos||0) > 0)                                    { countEl.className='value red';    subEl.textContent=`${data.fallidos} fallida(s)`;                             card.className='ia-stat-card red'; }
-                else if ((data.pendientes||0) > 0 || (data.en_curso||0) > 0)  { countEl.className='value yellow'; subEl.textContent=`${(data.pendientes||0)+(data.en_curso||0)} activa(s)`;   card.className='ia-stat-card yellow'; }
+                if ((data.failed||0) > 0)                                    { countEl.className='value red';    subEl.textContent=`${data.failed} failed`;                             card.className='ia-stat-card red'; }
+                else if ((data.pending||0) > 0 || (data.in_progress||0) > 0)  { countEl.className='value yellow'; subEl.textContent=`${(data.pending||0)+(data.in_progress||0)} active`;   card.className='ia-stat-card yellow'; }
                 else                                                           { countEl.className='value green';  subEl.textContent='sin tareas';                                              card.className='ia-stat-card green'; }
                 const lista  = document.getElementById('tareas-lista'), tareas = data.tareas || [];
                 if (!tareas.length) { lista.innerHTML = '<div class="empty-state">Sin tareas ✓</div>'; return; }
-                lista.innerHTML = tareas.map(t => `<div class="tarea-item ${t.estado}"><div class="tarea-header"><span class="tarea-desc">${t.descripcion}</span><span class="tarea-estado-badge ${t.estado} ${t.estado==='en_curso'?'pulsing':''}">${estadoLabel(t.estado)}</span></div><div class="tarea-meta">${t.tipo}${t.contenedor?' · '+t.contenedor:''} · ${t.intentos} intento(s) · ${t.actualizada}</div>${t.resultado?`<div class="tarea-resultado">${t.resultado}</div>`:''}<div style="display:flex;gap:6px;margin-top:8px;"><button class="btn-sm" onclick="ignorarTarea(${t.id})">Ignorar</button><button class="btn-sm btn-danger" onclick="borrarTarea(${t.id})">Borrar</button></div></div>`).join('');
+                lista.innerHTML = tareas.map(t => `<div class="tarea-item ${t.status}"><div class="tarea-header"><span class="tarea-desc">${t.description}</span><span class="tarea-estado-badge ${t.status} ${t.status==='en_curso'?'pulsing':''}">${estadoLabel(t.status)}</span></div><div class="tarea-meta">${t.type}${t.container?' · '+t.container:''} · ${t.attempts} intento(s) · ${t.updated}</div>${t.result?`<div class="tarea-resultado">${t.result}</div>`:''}<div style="display:flex;gap:6px;margin-top:8px;"><button class="btn-sm" onclick="ignorarTarea(${t.id})">Ignorar</button><button class="btn-sm btn-danger" onclick="borrarTarea(${t.id})">Borrar</button></div></div>`).join('');
             } catch(e) {}
         }
         function estadoLabel(e) { return {pendiente:'⏳ Pendiente', en_curso:'🔄 En curso', reparado:'✅ Reparado', fallido:'❌ Fallido', ignorado:'⏭️ Ignorado'}[e] || e; }
@@ -1068,28 +1068,28 @@
         async function ignorarTarea(id) {
             const res = await fetch(`/tareas/${id}/ignorar`, {method:'POST'});
             const data = await res.json();
-            mostrarAlerta(data.mensaje || 'Tarea ignorada', data.ok ? 'success' : 'warning');
+            mostrarAlerta(data.message || 'Tarea ignorada', data.ok ? 'success' : 'warning');
             cargarTareas();
             actualizarEstado();
         }
         async function borrarTarea(id) {
             const res = await fetch(`/tareas/${id}`, {method:'DELETE'});
             const data = await res.json();
-            mostrarAlerta(data.mensaje || 'Tarea borrada', data.ok ? 'success' : 'warning');
+            mostrarAlerta(data.message || 'Tarea borrada', data.ok ? 'success' : 'warning');
             cargarTareas();
             actualizarEstado();
         }
         async function ignorarFallidas() {
             const res = await fetch('/tareas/ignorar-fallidas', {method:'POST'});
             const data = await res.json();
-            mostrarAlerta(data.mensaje || 'Fallidas ignoradas', 'success');
+            mostrarAlerta(data.message || 'Fallidas ignoradas', 'success');
             cargarTareas();
             actualizarEstado();
         }
         async function limpiarResueltas() {
             const res = await fetch('/tareas/limpiar-resueltas', {method:'POST'});
             const data = await res.json();
-            mostrarAlerta(data.mensaje || 'Tareas limpiadas', 'success');
+            mostrarAlerta(data.message || 'Tareas limpiadas', 'success');
             cargarTareas();
             actualizarEstado();
         }
@@ -1097,15 +1097,15 @@
         async function cargarComandos() {
             try {
                 const res  = await fetch('/comandos'); const data = await res.json(); const lista = document.getElementById('cmds-lista');
-                if (!data.comandos?.length) { lista.innerHTML = '<div class="empty-state">Sin comandos aún</div>'; return; }
-                lista.innerHTML = data.comandos.slice(0,25).map(c => `<div class="cmd-item"><div class="cmd-text">$ ${c.comando}</div><div class="cmd-meta"><span>${c.origen||'chat'}</span><span>${c.hora||''}</span></div></div>`).join('');
+                if (!data.commands?.length) { lista.innerHTML = '<div class="empty-state">Sin comandos aún</div>'; return; }
+                lista.innerHTML = data.commands.slice(0,25).map(c => `<div class="cmd-item"><div class="cmd-text">$ ${c.command}</div><div class="cmd-meta"><span>${c.origin||'chat'}</span><span>${c.time||''}</span></div></div>`).join('');
             } catch(e) {}
         }
 
         async function cargarHistorial() {
-            const res  = await fetch('/historial'); const data = await res.json(); const lista = document.getElementById('historial-lista');
-            if (!data.historial.length) { lista.innerHTML = '<div class="empty-state">Sin historial</div>'; return; }
-            lista.innerHTML = data.historial.map(m => `<div class="historial-item"><div class="rol">${m.role==='user'?'👤 Vos':'⚡ Jarvis'}</div><div>${m.content}</div></div>`).join('');
+            const res  = await fetch('/history'); const data = await res.json(); const lista = document.getElementById('historial-lista');
+            if (!data.history.length) { lista.innerHTML = '<div class="empty-state">Sin historial</div>'; return; }
+            lista.innerHTML = data.history.map(m => `<div class="historial-item"><div class="rol">${m.role==='user'?'👤 Vos':'⚡ Jarvis'}</div><div>${m.content}</div></div>`).join('');
         }
 
         // ── Logs ──────────────────────────────────────────────────────
@@ -1113,7 +1113,7 @@
             const res  = await fetch('/stats'); const data = await res.json(); const cs = data.containers || [];
             document.getElementById('log-select').innerHTML = [
                 '<option value="__jarvis__">⚡ Jarvis (journalctl)</option>',
-                ...cs.map(c => `<option value="${c.nombre}">${c.estado==='running'?'✅':'❌'} ${c.nombre}</option>`)
+                ...cs.map(c => `<option value="${c.name}">${c.status==='running'?'✅':'❌'} ${c.name}</option>`)
             ].join('');
         }
         function _getContenedorSeleccionado() {
@@ -1144,24 +1144,24 @@
         // ── Permisos consola Discord ──────────────────────────────────
         async function cargarPermisosConsola() {
             try {
-                const res  = await fetch('/consola/permisos'); const data = await res.json(); const lista = document.getElementById('permisos-lista'); const usuarios = data.usuarios || [];
+                const res  = await fetch('/console/permissions'); const data = await res.json(); const lista = document.getElementById('permisos-lista'); const usuarios = data.usuarios || [];
                 if (!usuarios.length) { lista.innerHTML = '<div class="empty-state">Sin usuarios adicionales autorizados</div>'; return; }
-                lista.innerHTML = usuarios.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#000000;border:1px solid #21262d;border-radius:6px;border-left:3px solid #0066ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${u.nombre||'Sin nombre'}</span><span style="color:#8b949e;margin-left:8px;">${u.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">desde ${u.agregado||''}</span></div><button onclick="quitarPermisoConsola(${u.id})" style="background:#3d1f1f;color:#ff0d00;border:1px solid #ff0d00;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Quitar</button></div>`).join('');
+                lista.innerHTML = usuarios.map(u => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#000000;border:1px solid #21262d;border-radius:6px;border-left:3px solid #0066ff;font-size:12px;"><div><span style="color:#e6edf3;font-family:monospace;">${u.name||'Sin nombre'}</span><span style="color:#8b949e;margin-left:8px;">${u.id}</span><span style="color:#8b949e;margin-left:8px;font-size:10px;">desde ${u.added||''}</span></div><button onclick="quitarPermisoConsola(${u.id})" style="background:#3d1f1f;color:#ff0d00;border:1px solid #ff0d00;padding:3px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:monospace;">✕ Quitar</button></div>`).join('');
             } catch(e) { document.getElementById('permisos-lista').innerHTML = '<div class="empty-state">Endpoint no disponible</div>'; }
         }
         async function agregarPermisoConsola() {
             const idStr  = document.getElementById('perm-id-input').value.trim();
             const nombre = document.getElementById('perm-nombre-input').value.trim();
             if (!idStr || isNaN(parseInt(idStr))) { mostrarAlerta('Ingresá un Discord User ID numérico válido', 'danger'); return; }
-            const res  = await fetch('/consola/permisos', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:parseInt(idStr), nombre})});
+            const res  = await fetch('/console/permissions', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:parseInt(idStr), nombre})});
             const data = await res.json();
             if (data.ok) { mostrarAlerta(`Usuario ${nombre||idStr} agregado ✓`, 'success'); document.getElementById('perm-id-input').value=''; document.getElementById('perm-nombre-input').value=''; cargarPermisosConsola(); }
-            else mostrarAlerta(data.mensaje||'Error al agregar', 'warning');
+            else mostrarAlerta(data.message||'Error al agregar', 'warning');
         }
         async function quitarPermisoConsola(userId) {
-            const res  = await fetch(`/consola/permisos/${userId}`, {method:'DELETE'}); const data = await res.json();
+            const res  = await fetch(`/console/permissions/${userId}`, {method:'DELETE'}); const data = await res.json();
             if (data.ok) { mostrarAlerta('Usuario removido ✓', 'success'); cargarPermisosConsola(); }
-            else mostrarAlerta(data.mensaje||'Error', 'danger');
+            else mostrarAlerta(data.message||'Error', 'danger');
         }
 
         // ── Modales sistema ───────────────────────────────────────────
@@ -1182,8 +1182,8 @@
         }
         document.getElementById('modal-confirm').addEventListener('click', async () => {
             if (!accionPendiente) return; const accion = accionPendiente; cerrarModal();
-            if (accion === 'apagar')       { const d=(await(await fetch('/sistema/apagar',{method:'POST'})).json());    mostrarAlerta(d.mensaje,'warning'); setEstadoManual('apagando'); }
-            else if (accion === 'reiniciar'){ const d=(await(await fetch('/sistema/reiniciar',{method:'POST'})).json()); mostrarAlerta(d.mensaje,'warning'); setEstadoManual('reiniciando'); }
+            if (accion === 'apagar')       { const d=(await(await fetch('/system/shutdown',{method:'POST'})).json());    mostrarAlerta(d.message,'warning'); setEstadoManual('apagando'); }
+            else if (accion === 'reiniciar'){ const d=(await(await fetch('/system/reboot',{method:'POST'})).json()); mostrarAlerta(d.message,'warning'); setEstadoManual('reiniciando'); }
             else if (accion === 'docker-down') { const d=(await(await fetch('/docker/down',{method:'POST'})).json()); mostrarAlerta(d.mensaje,d.ok?'warning':'danger'); }
         });
 

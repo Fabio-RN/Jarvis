@@ -1,137 +1,137 @@
 from core.sistema import get_system_info, run_command
-from core.actividad import registrar as log_actividad
+from core.actividad import log as log_activity
 from tools.integraciones.media import (
-    jellyseerr_buscar, jellyseerr_requests_pendientes, jellyseerr_aprobar,
-    radarr_buscar, radarr_estado, sonarr_buscar, sonarr_estado
+    jellyseerr_search, jellyseerr_pending_requests, jellyseerr_approve,
+    radarr_search, radarr_status, sonarr_search, sonarr_status
 )
-from tools.integraciones.descargas import qbit_estado, qbit_pausar, qbit_reanudar
-from tools.integraciones.jellyfin import jellyfin_usuarios_conectados, jellyfin_estado_biblioteca
-from tools.integraciones.homeassistant import ha_estado_entidades, ha_ejecutar_servicio
-from tools.integraciones.automatizacion import n8n_listar_workflows, n8n_ejecutar_webhook, fb_listar_archivos
+from tools.integraciones.descargas import qbit_status, qbit_pause, qbit_resume
+from tools.integraciones.jellyfin import jellyfin_connected_users, jellyfin_library_status
+from tools.integraciones.homeassistant import ha_entity_status, ha_execute_service
+from tools.integraciones.automatizacion import n8n_list_workflows, n8n_execute_webhook, fb_list_files
 from tools.integraciones.docker import docker_restart, docker_compose_up, docker_compose_down
-from tools.integraciones.sitios import get_sitios_resumen, get_contadores_para_llm
+from tools.integraciones.sitios import get_sites_summary, get_day_counters_for_llm
 
 _discord_send = None
 _discord_dm   = None
 
 
-def set_discord_sender(fn_canal, fn_dm=None):
+def set_discord_sender(fn_channel, fn_dm=None):
     global _discord_send, _discord_dm
-    _discord_send = fn_canal
+    _discord_send = fn_channel
     _discord_dm   = fn_dm
 
 
-def ejecutar_herramienta(nombre: str, args: dict) -> str:
-    resultado = _despachar(nombre, args)
-    _categorizar_y_loguear(nombre, args, resultado)
-    return resultado
+def execute_tool(name: str, args: dict) -> str:
+    result = _dispatch(name, args)
+    _categorize_and_log(name, args, result)
+    return result
 
 
-def _despachar(nombre: str, args: dict) -> str:
-    match nombre:
-        case "ejecutar_comando":
-            return run_command(args["comando"], origen="jarvis")
-        case "info_sistema":
+def _dispatch(name: str, args: dict) -> str:
+    match name:
+        case "run_command":
+            return run_command(args["command"], origin="jarvis")
+        case "system_info":
             return get_system_info()
         case "docker_restart":
-            return docker_restart(args["nombre"])
+            return docker_restart(args["name"])
         case "docker_compose_up":
             return docker_compose_up()
         case "docker_compose_down":
             return docker_compose_down()
-        case "enviar_discord":
+        case "send_discord":
             if _discord_send:
-                _discord_send(args["mensaje"])
-                return "Mensaje enviado al canal."
-            return "Discord no disponible."
-        case "enviar_dm":
+                _discord_send(args["message"])
+                return "Message sent to channel."
+            return "Discord not available."
+        case "send_dm":
             if _discord_dm:
-                _discord_dm(args["mensaje"])
-                return "DM enviado."
+                _discord_dm(args["message"])
+                return "DM sent."
             elif _discord_send:
-                _discord_send(args["mensaje"])
-                return "DM enviado como canal (DM no configurado)."
-            return "Discord no disponible."
-        case "detectar_sitios":
-            return get_sitios_resumen()
-        case "get_contadores_dias":
-            return get_contadores_para_llm()
-        case "jellyseerr_buscar":
-            return jellyseerr_buscar(args["query"])
-        case "jellyseerr_requests_pendientes":
-            return jellyseerr_requests_pendientes()
-        case "jellyseerr_aprobar":
-            return jellyseerr_aprobar(args["request_id"])
-        case "radarr_buscar":
-            return radarr_buscar(args["query"])
-        case "radarr_estado":
-            return radarr_estado()
-        case "sonarr_buscar":
-            return sonarr_buscar(args["query"])
-        case "sonarr_estado":
-            return sonarr_estado()
-        case "qbit_estado":
-            return qbit_estado()
-        case "qbit_pausar":
-            return qbit_pausar(args["nombre"])
-        case "qbit_reanudar":
-            return qbit_reanudar(args["nombre"])
-        case "jellyfin_usuarios_conectados":
-            return jellyfin_usuarios_conectados()
-        case "jellyfin_estado_biblioteca":
-            return jellyfin_estado_biblioteca()
-        case "ha_estado_entidades":
-            return ha_estado_entidades()
-        case "ha_ejecutar_servicio":
-            return ha_ejecutar_servicio(args["dominio"], args["servicio"], args["entity_id"])
-        case "n8n_listar_workflows":
-            return n8n_listar_workflows()
-        case "n8n_ejecutar_webhook":
-            return n8n_ejecutar_webhook(args["webhook_url"])
-        case "fb_listar_archivos":
-            return fb_listar_archivos(args.get("ruta", "/"))
+                _discord_send(args["message"])
+                return "DM sent as channel message (DM not configured)."
+            return "Discord not available."
+        case "detect_sites":
+            return get_sites_summary()
+        case "get_day_counters":
+            return get_day_counters_for_llm()
+        case "jellyseerr_search":
+            return jellyseerr_search(args["query"])
+        case "jellyseerr_pending_requests":
+            return jellyseerr_pending_requests()
+        case "jellyseerr_approve":
+            return jellyseerr_approve(args["request_id"])
+        case "radarr_search":
+            return radarr_search(args["query"])
+        case "radarr_status":
+            return radarr_status()
+        case "sonarr_search":
+            return sonarr_search(args["query"])
+        case "sonarr_status":
+            return sonarr_status()
+        case "qbit_status":
+            return qbit_status()
+        case "qbit_pause":
+            return qbit_pause(args["name"])
+        case "qbit_resume":
+            return qbit_resume(args["name"])
+        case "jellyfin_connected_users":
+            return jellyfin_connected_users()
+        case "jellyfin_library_status":
+            return jellyfin_library_status()
+        case "ha_entity_status":
+            return ha_entity_status()
+        case "ha_execute_service":
+            return ha_execute_service(args["domain"], args["service"], args["entity_id"])
+        case "n8n_list_workflows":
+            return n8n_list_workflows()
+        case "n8n_execute_webhook":
+            return n8n_execute_webhook(args["webhook_url"])
+        case "fb_list_files":
+            return fb_list_files(args.get("path", "/"))
         case _:
-            return f"Herramienta '{nombre}' no reconocida."
+            return f"Unknown tool: '{name}'"
 
 
-def _categorizar_y_loguear(nombre, args, resultado):
-    categorias = {
-        "ejecutar_comando":               ("cmd",  "Comando"),
-        "info_sistema":                   ("tool", "Sistema"),
-        "docker_restart":                 ("tool", "Docker"),
-        "docker_compose_up":              ("ok",   "Docker"),
-        "docker_compose_down":            ("warn", "Docker"),
-        "enviar_discord":                 ("tool", "Discord"),
-        "enviar_dm":                      ("tool", "Discord DM"),
-        "detectar_sitios":                ("tool", "Sitios"),
-        "get_contadores_dias":            ("tool", "Contadores"),
-        "jellyseerr_buscar":              ("tool", "Media"),
-        "jellyseerr_requests_pendientes": ("tool", "Media"),
-        "jellyseerr_aprobar":             ("ok",   "Media"),
-        "radarr_buscar":                  ("tool", "Media"),
-        "radarr_estado":                  ("tool", "Media"),
-        "sonarr_buscar":                  ("tool", "Media"),
-        "sonarr_estado":                  ("tool", "Media"),
-        "qbit_estado":                    ("tool", "Descargas"),
-        "qbit_pausar":                    ("warn", "Descargas"),
-        "qbit_reanudar":                  ("ok",   "Descargas"),
-        "jellyfin_usuarios_conectados":   ("tool", "Jellyfin"),
-        "jellyfin_estado_biblioteca":     ("tool", "Jellyfin"),
-        "ha_estado_entidades":            ("tool", "Home Assistant"),
-        "ha_ejecutar_servicio":           ("ok",   "Home Assistant"),
-        "n8n_listar_workflows":           ("tool", "n8n"),
-        "n8n_ejecutar_webhook":           ("ok",   "n8n"),
-        "fb_listar_archivos":             ("tool", "Filebrowser"),
+def _categorize_and_log(name, args, result):
+    categories = {
+        "run_command":               ("cmd",  "Command"),
+        "system_info":               ("tool", "System"),
+        "docker_restart":            ("tool", "Docker"),
+        "docker_compose_up":         ("ok",   "Docker"),
+        "docker_compose_down":       ("warn", "Docker"),
+        "send_discord":              ("tool", "Discord"),
+        "send_dm":                   ("tool", "Discord DM"),
+        "detect_sites":              ("tool", "Sites"),
+        "get_day_counters":          ("tool", "Counters"),
+        "jellyseerr_search":         ("tool", "Media"),
+        "jellyseerr_pending_requests": ("tool", "Media"),
+        "jellyseerr_approve":        ("ok",   "Media"),
+        "radarr_search":             ("tool", "Media"),
+        "radarr_status":             ("tool", "Media"),
+        "sonarr_search":             ("tool", "Media"),
+        "sonarr_status":             ("tool", "Media"),
+        "qbit_status":               ("tool", "Downloads"),
+        "qbit_pause":                ("warn", "Downloads"),
+        "qbit_resume":               ("ok",   "Downloads"),
+        "jellyfin_connected_users":  ("tool", "Jellyfin"),
+        "jellyfin_library_status":   ("tool", "Jellyfin"),
+        "ha_entity_status":          ("tool", "Home Assistant"),
+        "ha_execute_service":        ("ok",   "Home Assistant"),
+        "n8n_list_workflows":        ("tool", "n8n"),
+        "n8n_execute_webhook":        ("ok",   "n8n"),
+        "fb_list_files":             ("tool", "Filebrowser"),
     }
-    tipo, badge = categorias.get(nombre, ("tool", nombre))
+    entry_type, badge = categories.get(name, ("tool", name))
 
-    if nombre == "ejecutar_comando":
-        texto = f"$ {args.get('comando','')}"
-    elif nombre == "docker_restart":
-        texto = f"Reinicio: {args.get('nombre','')}"
-    elif nombre in ("enviar_discord", "enviar_dm"):
-        texto = f"Mensaje: {args.get('mensaje','')[:60]}"
+    if name == "run_command":
+        text = f"$ {args.get('command','')}"
+    elif name == "docker_restart":
+        text = f"Restart: {args.get('name','')}"
+    elif name in ("send_discord", "send_dm"):
+        text = f"Message: {args.get('message','')[:60]}"
     else:
-        texto = f"{nombre}({', '.join(f'{k}={v}' for k,v in args.items())})"
+        text = f"{name}({', '.join(f'{k}={v}' for k,v in args.items())})"
 
-    log_actividad(tipo, texto, badge)
+    log_activity(entry_type, text, badge)
