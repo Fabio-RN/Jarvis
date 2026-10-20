@@ -3,7 +3,7 @@ set -euo pipefail
 
 INSTALL_DIR="/srv/nas/assistant"
 SERVICE_NAME="jarvis"
-REPO_URL=""
+REPO_URL="https://github.com/your-user/jarvis.git "
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
