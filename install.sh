@@ -45,7 +45,7 @@ else
         info "No --repo URL provided. Copying from current directory..."
         mkdir -p "$INSTALL_DIR"
         SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        rsync -a
+        rsync -a --exclude='.git' --exclude='__pycache__' --exclude='.env' --exclude='data/' "$SCRIPT_DIR/" "$INSTALL_DIR/"
     else
         info "Cloning from $REPO_URL..."
         git clone "$REPO_URL" "$INSTALL_DIR"
